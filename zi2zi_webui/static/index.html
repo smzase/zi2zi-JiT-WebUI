@@ -4,931 +4,1142 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>zi2zi-JiT Font Studio</title>
-  <link rel="stylesheet" href="/static/styles.css?v=5" />
+  <link rel="stylesheet" href="/static/styles.css?v=6" />
 </head>
-<body>
+<body data-ui-mode="advanced">
   <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">字</div>
-        <div class="brand-meta">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand-bar">
+        <div class="brand-glyph" aria-hidden="true">字</div>
+        <div class="brand-copy">
           <div class="brand-title">zi2zi-JiT</div>
-          <div class="brand-sub" data-i18n="brandSub">Font Studio</div>
+          <div class="brand-sub">Font Studio</div>
         </div>
       </div>
 
-      <div class="mode-switcher" id="uiModeSwitcher" role="tablist" aria-label="Interface mode">
-        <button class="mode-btn active" data-ui-mode="simple" type="button" data-i18n="modeSimple">简易模式</button>
-        <button class="mode-btn" data-ui-mode="advanced" type="button" data-i18n="modeAdvanced">高级模式</button>
+      <div class="mode-switcher" id="uiModeSwitcher" role="tablist" aria-label="Interface Mode">
+        <button class="mode-btn" type="button" data-ui-mode="simple" data-i18n="mode.simple">简易模式</button>
+        <button class="mode-btn active" type="button" data-ui-mode="advanced" data-i18n="mode.advanced">高级模式</button>
       </div>
 
-      <div class="project-switcher">
-        <div class="switcher-label-row">
-          <span class="micro-label" data-i18n="activeProject">当前项目</span>
-          <button class="btn-link" id="quickNewProjectBtn" type="button" data-i18n="newProjectShort">+ 新建</button>
+      <div class="sidebar-project">
+        <div class="sidebar-project-head">
+          <span class="sidebar-label" data-i18n="sidebar.project">当前项目</span>
+          <button class="link-btn" id="btnQuickNewProject" type="button" data-i18n="sidebar.newProject">+ 新建</button>
         </div>
-        <select id="globalProjectSelect" class="select-input" aria-label="Active project"></select>
-        <div class="project-pills" id="projectReadinessPills"></div>
+        <select id="projectSelect" class="select-input compact" aria-label="Active Project"></select>
+        <div class="readiness-strip" id="sidebarReadinessStrip">
+          <span class="ready-dot" data-stage="model"><i class="rdot"></i><span data-i18n="stage.model">模型</span></span>
+          <span class="ready-dot" data-stage="assets"><i class="rdot"></i><span data-i18n="stage.assets">素材</span></span>
+          <span class="ready-dot" data-stage="train"><i class="rdot"></i><span data-i18n="stage.train">微调</span></span>
+          <span class="ready-dot" data-stage="gen"><i class="rdot"></i><span data-i18n="stage.gen">出字</span></span>
+        </div>
       </div>
 
-      <nav class="nav-group" id="simpleNavGroup" aria-label="Quick Start">
-        <div class="micro-label nav-section-title" data-i18n="quickStartSection">快速引导</div>
-        <button class="nav-item active" data-view="simple" type="button">
-          <span class="nav-step">01</span>
-          <span class="nav-text" data-i18n="navSimpleWizard">快速出字向导</span>
+      <!-- Simple Mode Navigation -->
+      <nav class="nav-list nav-simple" id="simpleNav" aria-label="Simple Navigation">
+        <div class="nav-group-label" data-i18n="nav.groupSimple">快速向导</div>
+        <button class="nav-item active" type="button" data-view="simple">
+          <span class="nav-index">01</span>
+          <span class="nav-label" data-i18n="nav.simpleWizard">快速出字工作台</span>
+        </button>
+        <div class="nav-group-label" data-i18n="nav.groupSystem">系统</div>
+        <button class="nav-item" type="button" data-view="jobs">
+          <span class="nav-index">Q</span>
+          <span class="nav-label" data-i18n="nav.jobs">任务队列</span>
+          <span class="nav-badge hidden" id="navJobsBadgeSimple">0</span>
         </button>
       </nav>
 
-      <nav class="nav-group hidden" id="advancedNavGroup" aria-label="Workflow">
-        <div class="micro-label nav-section-title" data-i18n="workflowSection">工作流</div>
-        <button class="nav-item active" data-view="projects" type="button">
-          <span class="nav-step">01</span>
-          <span class="nav-text" data-i18n="navProjects">项目与备份</span>
+      <!-- Advanced Mode Navigation -->
+      <nav class="nav-list nav-advanced" id="mainNav" aria-label="Studio Navigation">
+        <div class="nav-group-label" data-i18n="nav.groupPrepare">准备</div>
+        <button class="nav-item active" type="button" data-view="projects">
+          <span class="nav-index">01</span>
+          <span class="nav-label" data-i18n="nav.projects">项目概览</span>
         </button>
-        <button class="nav-item" data-view="assets" type="button">
-          <span class="nav-step">02</span>
-          <span class="nav-text" data-i18n="navAssets">素材与模型</span>
+        <button class="nav-item" type="button" data-view="assets">
+          <span class="nav-index">02</span>
+          <span class="nav-label" data-i18n="nav.assets">素材与模型</span>
         </button>
-        <button class="nav-item" data-view="train" type="button">
-          <span class="nav-step">03</span>
-          <span class="nav-text" data-i18n="navTrain">数据与训练</span>
-        </button>
-        <button class="nav-item" data-view="monitor" type="button">
-          <span class="nav-step">04</span>
-          <span class="nav-text" data-i18n="navMonitor">训练监控</span>
-        </button>
-        <button class="nav-item" data-view="generate" type="button">
-          <span class="nav-step">05</span>
-          <span class="nav-text" data-i18n="navGenerate">字形生成</span>
-        </button>
-        <button class="nav-item" data-view="review" type="button">
-          <span class="nav-step">06</span>
-          <span class="nav-text" data-i18n="navReview">审阅与导出</span>
-        </button>
-      </nav>
 
-      <nav class="nav-group nav-group-secondary" aria-label="System">
-        <div class="micro-label nav-section-title" data-i18n="systemSection">系统</div>
-        <button class="nav-item" data-view="jobs" type="button">
-          <span class="nav-step">Q</span>
-          <span class="nav-text" data-i18n="navJobs">任务队列</span>
-          <span class="nav-badge hidden" id="activeJobsBadge">0</span>
+        <div class="nav-group-label" data-i18n="nav.groupTrain">训练</div>
+        <button class="nav-item" type="button" data-view="training">
+          <span class="nav-index">03</span>
+          <span class="nav-label" data-i18n="nav.training">数据与微调</span>
+        </button>
+        <button class="nav-item" type="button" data-view="monitor">
+          <span class="nav-index">04</span>
+          <span class="nav-label" data-i18n="nav.monitor">训练监控</span>
+        </button>
+
+        <div class="nav-group-label" data-i18n="nav.groupProduce">生产</div>
+        <button class="nav-item" type="button" data-view="generate">
+          <span class="nav-index">05</span>
+          <span class="nav-label" data-i18n="nav.generate">字形生成</span>
+        </button>
+        <button class="nav-item" type="button" data-view="review">
+          <span class="nav-index">06</span>
+          <span class="nav-label" data-i18n="nav.review">审阅与导出</span>
+        </button>
+
+        <div class="nav-group-label" data-i18n="nav.groupSystem">系统</div>
+        <button class="nav-item" type="button" data-view="jobs">
+          <span class="nav-index">Q</span>
+          <span class="nav-label" data-i18n="nav.jobs">任务队列</span>
+          <span class="nav-badge hidden" id="navJobsBadge">0</span>
         </button>
       </nav>
 
       <div class="sidebar-footer">
-        <div class="sys-row">
-          <span class="sys-key" data-i18n="deviceLabel">计算设备</span>
-          <span class="sys-val" id="sidebarDevice">—</span>
+        <div class="hw-row">
+          <span class="hw-key" data-i18n="sidebar.device">设备</span>
+          <span class="hw-val" id="sidebarDevice">-</span>
         </div>
-        <div class="sys-row">
-          <span class="sys-key" data-i18n="diskLabel">可用磁盘</span>
-          <span class="sys-val" id="sidebarDisk">—</span>
+        <div class="hw-row">
+          <span class="hw-key" data-i18n="sidebar.disk">磁盘</span>
+          <span class="hw-val" id="sidebarDisk">-</span>
         </div>
-        <a class="tb-link" id="tensorboardLink" href="http://127.0.0.1:6006" target="_blank" rel="noreferrer" data-i18n="openTensorboard">打开 TensorBoard</a>
+        <div class="sidebar-links">
+          <a id="tbExternalLink" href="http://127.0.0.1:6006" target="_blank" rel="noopener noreferrer" class="sidebar-link" data-i18n="sidebar.tensorboard">TensorBoard</a>
+        </div>
       </div>
     </aside>
 
+    <!-- Main Area -->
     <div class="main-column">
       <header class="topbar">
-        <div class="topbar-left">
-          <button class="btn btn-ghost btn-sm mobile-menu-btn" id="mobileMenuBtn" type="button">菜单</button>
-          <div>
-            <h1 class="view-title" id="viewTitle">项目与备份</h1>
-            <p class="view-subtitle" id="viewSubtitle"></p>
-          </div>
+        <div class="topbar-title-group">
+          <h1 class="page-title" id="pageTitle">项目概览</h1>
+          <p class="page-desc" id="pageDesc">管理字体项目、查看就绪进度或导入导出可移植项目包</p>
         </div>
-        <div class="topbar-right">
-          <button class="status-pill" id="topJobPill" type="button" title="View jobs">
-            <span class="status-dot" id="topJobDot"></span>
-            <span id="topJobText">空闲</span>
+        <div class="topbar-actions">
+          <button class="status-chip" id="topbarJobChip" type="button" title="View jobs">
+            <span class="status-dot idle" id="topbarJobDot"></span>
+            <span id="topbarJobText">空闲</span>
           </button>
-          <button class="btn btn-ghost btn-sm" id="langToggleBtn" type="button">EN</button>
-          <button class="btn btn-ghost btn-sm" id="themeToggleBtn" type="button">深色</button>
+          <button class="btn ghost compact" id="btnToggleLang" type="button">EN</button>
+          <button class="btn ghost compact" id="btnToggleTheme" type="button" data-i18n="theme.dark">深色</button>
         </div>
       </header>
 
-      <main class="content" id="contentArea">
-        <!-- VIEW 0: SIMPLE WIZARD -->
+      <main class="workspace" id="workspace">
+
+        <!-- =========================================================
+             SIMPLE MODE: HORIZONTAL STEPPER + FOCUSED WORKBENCH
+             ========================================================= -->
         <section class="view" id="view-simple">
-          <div class="wizard-banner hidden" id="simpleJobBanner">
-            <div class="wizard-banner-text">
-              <span class="status-dot running"></span>
-              <span id="simpleJobBannerText"></span>
-            </div>
-            <button class="btn btn-ghost btn-xs" id="simpleViewLogsBtn" type="button" data-i18n="viewLogs">查看日志</button>
+          <div class="stepper-bar" id="simpleStepper" role="tablist">
+            <button class="stepper-item active" type="button" data-step="1">
+              <span class="stepper-num">01</span>
+              <span class="stepper-body">
+                <span class="stepper-name" data-i18n="simple.nav1">项目与模型</span>
+                <span class="stepper-state" id="simpleStep1State">待配置</span>
+              </span>
+            </button>
+            <button class="stepper-item" type="button" data-step="2">
+              <span class="stepper-num">02</span>
+              <span class="stepper-body">
+                <span class="stepper-name" data-i18n="simple.nav2">字体素材</span>
+                <span class="stepper-state" id="simpleStep2State">待上传</span>
+              </span>
+            </button>
+            <button class="stepper-item" type="button" data-step="3">
+              <span class="stepper-num">03</span>
+              <span class="stepper-body">
+                <span class="stepper-name" data-i18n="simple.nav3">生字 / 微调</span>
+                <span class="stepper-state" id="simpleStep3State">待开始</span>
+              </span>
+            </button>
+            <button class="stepper-item" type="button" data-step="4">
+              <span class="stepper-num">04</span>
+              <span class="stepper-body">
+                <span class="stepper-name" data-i18n="simple.nav4">导出与试写</span>
+                <span class="stepper-state" id="simpleStep4State">待生成</span>
+              </span>
+            </button>
           </div>
 
-          <div class="wizard-stack">
-            <!-- STEP 1: PROJECT & MODEL -->
-            <div class="card wizard-card">
-              <div class="wizard-card-head">
-                <div class="wizard-title-wrap">
-                  <span class="wizard-step-badge">01</span>
+          <div class="studio-split">
+            <!-- Left Focused Step Canvas -->
+            <div class="studio-main">
+              <!-- Step 1 -->
+              <section class="panel step-panel active" id="simplePane1">
+                <div class="panel-header">
                   <div>
-                    <h2 class="card-title" data-i18n="simpleStep1Title">准备项目与基础模型</h2>
-                    <span class="card-hint" data-i18n="simpleStep1Hint">新建一个字体项目，并挂载或一键下载官方基础模型</span>
+                    <h2 class="panel-title" data-i18n="simple.step1Title">创建字体项目并准备基础模型</h2>
+                    <p class="panel-sub" data-i18n="simple.step1Sub">先确定工作项目，然后一键挂载共享模型或下载官方 JiT-B/16</p>
                   </div>
-                </div>
-                <span class="pill" id="simpleStep1Status">待配置</span>
-              </div>
-
-              <div class="grid-2">
-                <div class="sub-panel">
-                  <div class="sub-panel-title" data-i18n="simpleProjectBoxTitle">字体项目</div>
-                  <div class="inline-form">
-                    <input id="simpleNewProjectName" class="text-input" type="text" placeholder="输入项目名称，如：我的手写体" />
-                    <button class="btn btn-primary" id="simpleCreateProjectBtn" type="button" data-i18n="createBtn">创建项目</button>
-                  </div>
-                  <div class="status-strip" id="simpleProjectStatus"></div>
+                  <span class="pill" id="simpleStep1Badge">待配置</span>
                 </div>
 
-                <div class="sub-panel">
-                  <div class="sub-panel-title" data-i18n="simpleModelBoxTitle">基础模型</div>
-                  <div class="inline-form">
+                <div class="step-section">
+                  <div class="section-eyebrow" data-i18n="simple.projectBlock">第一步：字体项目</div>
+                  <div class="inline-action-row">
+                    <input id="simpleProjectName" class="text-input" type="text" placeholder="输入项目名称，如：我的手写体" />
+                    <button class="btn primary" id="btnSimpleCreateProject" type="button" data-i18n="simple.createProject">新建项目</button>
+                  </div>
+                  <div class="info-banner" id="simpleProjectInfo">-</div>
+                </div>
+
+                <div class="step-divider"></div>
+
+                <div class="step-section">
+                  <div class="section-eyebrow" data-i18n="simple.modelBlock">第二步：基础模型</div>
+                  <div class="inline-action-row">
                     <select id="simpleSharedModelSelect" class="select-input"></select>
-                    <button class="btn btn-secondary" id="simpleAttachModelBtn" type="button" data-i18n="simpleAttachBtn">挂载</button>
+                    <button class="btn" id="btnSimpleAttachModel" type="button" data-i18n="simple.attach">挂载选中</button>
                   </div>
                   <div class="action-row">
-                    <button class="btn btn-ghost btn-sm" id="simpleDownloadDefaultBtn" type="button" data-i18n="simpleDownloadModelBtn">一键下载官方 JiT-B/16</button>
-                    <button class="btn btn-ghost btn-sm" id="simpleToggleUploadModelBtn" type="button" data-i18n="simpleUploadLocalToggle">导入本地权重</button>
+                    <button class="btn primary" id="btnSimpleDownloadModel" type="button" data-i18n="simple.downloadOfficial">一键下载官方 JiT-B/16</button>
+                    <button class="btn ghost" id="btnSimpleToggleLocalModel" type="button" data-i18n="simple.importLocal">导入本地权重</button>
                   </div>
-                  <div class="simple-upload-collapse hidden" id="simpleLocalModelBox">
-                    <div class="dropzone compact" data-input="simpleLocalModelFile">
-                      <input type="file" id="simpleLocalModelFile" accept=".pth,.pt,.ckpt" hidden />
-                      <span class="dropzone-text" data-i18n="dropCheckpoint">选择 .pth / .pt / .ckpt</span>
-                      <span class="dropzone-files"></span>
-                    </div>
-                    <div class="action-row spread">
-                      <label class="checkbox-label compact">
-                        <input type="checkbox" id="simpleTrustLocalModel" />
-                        <span data-i18n="trustCheckpointText">确认该权重来源可信 (pickle 加载确认)</span>
-                      </label>
-                      <button class="btn btn-secondary btn-sm" id="simpleUploadModelBtn" type="button" data-i18n="importModelBtn">导入并挂载</button>
-                    </div>
+                  <div class="inline-import hidden" id="simpleLocalModelBox">
+                    <input id="simpleLocalModelFile" class="text-input" type="file" accept=".pth,.pt" />
+                    <button class="btn" id="btnSimpleImportLocalModel" type="button" data-i18n="assets.importBase">导入</button>
                   </div>
-                  <div class="status-strip" id="simpleModelStatus"></div>
+                  <div class="info-banner" id="simpleModelInfo">-</div>
                 </div>
-              </div>
-            </div>
 
-            <!-- STEP 2: UPLOAD FONTS -->
-            <div class="card wizard-card">
-              <div class="wizard-card-head">
-                <div class="wizard-title-wrap">
-                  <span class="wizard-step-badge">02</span>
+                <div class="step-footer">
+                  <span class="hint" data-i18n="simple.step1Foot">项目与模型就绪后即可进入素材上传</span>
+                  <button class="btn primary" type="button" data-goto-step="2" data-i18n="simple.next">下一步：上传字体</button>
+                </div>
+              </section>
+
+              <!-- Step 2 -->
+              <section class="panel step-panel" id="simplePane2">
+                <div class="panel-header">
                   <div>
-                    <h2 class="card-title" data-i18n="simpleStep2Title">上传参考源字体与目标风格字体</h2>
-                    <span class="card-hint" data-i18n="simpleStep2Hint">源字体提供清晰字形结构（如思源黑体），目标字体提供你想模仿的笔触风格</span>
+                    <h2 class="panel-title" data-i18n="simple.step2Title">上传参考源字体与目标风格字体</h2>
+                    <p class="panel-sub" data-i18n="simple.step2Sub">源字体提供标准字形结构（如思源黑体），目标字体提供你想模仿的笔触风格</p>
                   </div>
-                </div>
-                <span class="pill" id="simpleStep2Status">待上传</span>
-              </div>
-
-              <div class="grid-2">
-                <div class="field">
-                  <span class="field-label" data-i18n="simpleSourceFontLabel">参考源字体 (.ttf / .otf / .ttc)</span>
-                  <div class="dropzone compact" data-input="simpleSourceFontsInput">
-                    <input type="file" id="simpleSourceFontsInput" accept=".ttf,.otf,.ttc" multiple hidden />
-                    <span class="dropzone-text" data-i18n="dropSourceFonts">点击或拖拽上传源字体文件</span>
-                    <span class="dropzone-files"></span>
-                  </div>
-                </div>
-                <div class="field">
-                  <span class="field-label" data-i18n="simpleTargetFontLabel">目标风格字体 (.ttf / .otf / .ttc)</span>
-                  <div class="dropzone compact" data-input="simpleTargetFontInput">
-                    <input type="file" id="simpleTargetFontInput" accept=".ttf,.otf,.ttc" hidden />
-                    <span class="dropzone-text" data-i18n="simpleDropTargetFont">点击或拖拽上传目标风格字体</span>
-                    <span class="dropzone-files"></span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="action-row spread">
-                <div class="status-strip inline" id="simpleAssetsStatus"></div>
-                <button class="btn btn-primary" id="simpleSaveAssetsBtn" type="button" data-i18n="simpleSaveAssetsBtn">保存字体并提取风格参考</button>
-              </div>
-            </div>
-
-            <!-- STEP 3: GENERATE OR QUICK TRAIN -->
-            <div class="card wizard-card">
-              <div class="wizard-card-head">
-                <div class="wizard-title-wrap">
-                  <span class="wizard-step-badge">03</span>
-                  <div>
-                    <h2 class="card-title" data-i18n="simpleStep3Title">开始生字（或先快速微调）</h2>
-                    <span class="card-hint" data-i18n="simpleStep3Hint">新手可直接输入文字生成测试效果；想要更还原笔触可先运行一键微调</span>
-                  </div>
-                </div>
-                <span class="pill" id="simpleStep3Status">准备就绪</span>
-              </div>
-
-              <div class="segmented" id="simpleStep3Tabs">
-                <button class="seg-btn active" data-simple-tab="simple-gen-pane" type="button" data-i18n="simpleTabDirectGen">直接生字（推荐先试）</button>
-                <button class="seg-btn" data-simple-tab="simple-train-pane" type="button" data-i18n="simpleTabQuickTrain">先快速微调（效果更佳）</button>
-              </div>
-
-              <div class="simple-pane active" id="simple-gen-pane">
-                <label class="field">
-                  <div class="label-inline">
-                    <span class="field-label" data-i18n="simpleTextLabel">输入想要生成的文字</span>
-                    <button class="btn-link" id="simpleFillSampleBtn" type="button" data-i18n="simpleFillSample">填入示例文本</button>
-                  </div>
-                  <textarea id="simpleGenText" class="textarea-input" rows="3" placeholder="例如：永和九年岁在癸丑暮春之初"></textarea>
-                  <span class="field-meta" id="simpleCharCounter">0 个去重字符</span>
-                </label>
-
-                <div class="field">
-                  <span class="field-label" data-i18n="simpleQuickPresetsLabel">或快捷勾选常用字符集</span>
-                  <div class="quick-preset-row" id="simpleQuickPresets"></div>
+                  <span class="pill" id="simpleStep2Badge">待上传</span>
                 </div>
 
-                <div class="action-row spread">
-                  <div class="status-strip inline" id="simpleGenHint"></div>
-                  <button class="btn btn-primary" id="simpleStartGenBtn" type="button" data-i18n="simpleStartGenBtn">立即开始生成字形</button>
-                </div>
-              </div>
-
-              <div class="simple-pane" id="simple-train-pane">
-                <div class="grid-2">
-                  <label class="field">
-                    <span class="field-label" data-i18n="simpleTrainPresetLabel">选择微调强度</span>
-                    <select id="simpleTrainPreset" class="select-input">
-                      <option value="fast">快速体验（500 字 · 10 轮 · 约数分钟）</option>
-                      <option value="standard" selected>均衡推荐（3000 字 · 20 轮 · 笔触更稳）</option>
-                    </select>
-                  </label>
+                <div class="grid two-col">
                   <div class="field">
-                    <span class="field-label" data-i18n="simpleTrainTipLabel">说明</span>
-                    <div class="status-strip" id="simpleTrainStatus">先点击「构建训练数据」，待任务完成后再点击「开始快速微调」。</div>
+                    <label class="field-label" data-i18n="simple.sourceFont">参考源字体（.ttf / .otf / .ttc）</label>
+                    <div class="dropzone tall" data-file-input="simpleSourceFont">
+                      <input id="simpleSourceFont" type="file" accept=".ttf,.otf,.ttc" />
+                      <div class="dropzone-text" data-i18n="simple.dropSource">点击或拖拽上传源字体文件</div>
+                      <div class="dropzone-files" id="simpleSourceFontFiles"></div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" data-i18n="simple.targetFont">目标风格字体（.ttf / .otf / .ttc）</label>
+                    <div class="dropzone tall" data-file-input="simpleTargetFont">
+                      <input id="simpleTargetFont" type="file" accept=".ttf,.otf,.ttc" />
+                      <div class="dropzone-text" data-i18n="simple.dropTarget">点击或拖拽上传目标风格字体</div>
+                      <div class="dropzone-files" id="simpleTargetFontFiles"></div>
+                    </div>
                   </div>
                 </div>
-                <div class="action-row">
-                  <button class="btn btn-secondary" id="simpleBuildDatasetBtn" type="button" data-i18n="simpleBuildDatasetBtn">1. 构建训练数据</button>
-                  <button class="btn btn-primary" id="simpleStartTrainBtn" type="button" data-i18n="simpleStartTrainBtn">2. 开始快速微调</button>
-                  <button class="btn btn-ghost btn-sm" id="simpleGoMonitorBtn" type="button" data-i18n="simpleGoMonitorBtn">切到高级模式看曲线</button>
-                </div>
-              </div>
-            </div>
 
-            <!-- STEP 4: EXPORT & PREVIEW -->
-            <div class="card wizard-card">
-              <div class="wizard-card-head">
-                <div class="wizard-title-wrap">
-                  <span class="wizard-step-badge">04</span>
+                <div class="info-banner" id="simpleAssetsInfo">-</div>
+
+                <div class="step-footer">
+                  <button class="btn ghost" type="button" data-goto-step="1" data-i18n="simple.prev">上一步</button>
+                  <div class="action-row">
+                    <button class="btn primary" id="btnSimpleSaveAssets" type="button" data-i18n="simple.saveAssets">保存字体并提取风格参考</button>
+                    <button class="btn" type="button" data-goto-step="3" data-i18n="simple.next3">下一步：开始生字</button>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Step 3 -->
+              <section class="panel step-panel" id="simplePane3">
+                <div class="panel-header">
                   <div>
-                    <h2 class="card-title" data-i18n="simpleStep4Title">导出可安装字库 (.ttf) 与试写</h2>
-                    <span class="card-hint" data-i18n="simpleStep4Hint">自动采用最新生成批次与推荐矢量化参数，一键合成可安装 TrueType 字体</span>
+                    <h2 class="panel-title" data-i18n="simple.step3Title">直接生字或先做快速微调</h2>
+                    <p class="panel-sub" data-i18n="simple.step3Sub">新手建议先直接试生几个字看效果；追求高度还原笔触可选择先微调再生成</p>
+                  </div>
+                  <span class="pill" id="simpleStep3Badge">待开始</span>
+                </div>
+
+                <div class="segmented" id="simpleActionTabs">
+                  <button class="seg-btn active" type="button" data-simple-tab="generate" data-i18n="simple.tabGenerate">直接生字（快速体验）</button>
+                  <button class="seg-btn" type="button" data-simple-tab="train" data-i18n="simple.tabTrain">先微调模型（还原更佳）</button>
+                </div>
+
+                <!-- Sub-pane: Direct Generate -->
+                <div class="simple-subpane active" id="simplePaneGenerate">
+                  <div class="field">
+                    <div class="label-row">
+                      <label class="field-label" for="simpleGenText" data-i18n="simple.inputChars">输入想要生成的文字</label>
+                      <button class="link-btn" id="btnSimpleFillSample" type="button" data-i18n="simple.fillSample">填入示例文本</button>
+                    </div>
+                    <textarea id="simpleGenText" class="textarea-input" rows="3" placeholder="例如：永和九年岁在癸丑暮春之初"></textarea>
+                    <div class="hint" id="simpleGenCharCount">0 个去重字符</div>
+                  </div>
+
+                  <div class="field">
+                    <div class="label-row">
+                      <label class="field-label" data-i18n="simple.quickCharsets">或快捷勾选字符集（主推 GBK）</label>
+                      <button class="link-btn" id="btnSimpleClearPresets" type="button" data-i18n="simple.clearPresets">清空勾选</button>
+                    </div>
+                    <div class="preset-card-grid" id="simpleQuickPresets"></div>
+                  </div>
+
+                  <div class="info-banner" id="simpleGenNote">自动使用最新可用权重与推荐设备生成。</div>
+
+                  <div class="action-row">
+                    <button class="btn primary" id="btnSimpleStartGen" type="button" data-i18n="simple.startGen">立即开始生成字形</button>
                   </div>
                 </div>
-                <span class="pill" id="simpleStep4Status">待生成</span>
-              </div>
 
-              <div class="inline-form">
-                <input id="simpleExportFamily" class="text-input" type="text" value="MyCustomFont" placeholder="字体名称，如 MyCustomFont" />
-                <button class="btn btn-primary" id="simpleBuildFontBtn" type="button" data-i18n="simpleBuildFontBtn">一键导出 TTF 字库</button>
-                <button class="btn btn-ghost btn-sm" id="simpleRefreshArtifactsBtn" type="button" data-i18n="refresh">刷新</button>
-              </div>
-
-              <div class="grid-2">
-                <div class="sub-panel">
-                  <div class="sub-panel-title" data-i18n="downloadableFilesTitle">下载文件</div>
-                  <div class="file-list" id="simpleArtifactsList"></div>
-                </div>
-                <div class="sub-panel">
-                  <div class="sub-panel-title">
-                    <span data-i18n="simplePreviewTitle">实时试写</span>
-                    <span class="pill" id="simplePreviewFontBadge">—</span>
+                <!-- Sub-pane: Quick Fine-Tune -->
+                <div class="simple-subpane" id="simplePaneTrain">
+                  <div class="field">
+                    <label class="field-label" data-i18n="simple.trainTier">选择微调字数与强度档位</label>
+                    <div class="tier-grid" id="simpleTrainTierGrid" role="radiogroup">
+                      <button class="tier-card" type="button" data-tier="fast">
+                        <div class="tier-head">
+                          <span class="tier-name" data-i18n="simple.tierFastName">快速体验</span>
+                          <span class="pill">500 字</span>
+                        </div>
+                        <div class="tier-meta" data-i18n="simple.tierFastMeta">10 轮 · 经济档 · 快速验证笔触方向</div>
+                      </button>
+                      <button class="tier-card active" type="button" data-tier="standard">
+                        <div class="tier-head">
+                          <span class="tier-name" data-i18n="simple.tierStdName">均衡推荐</span>
+                          <span class="pill accent">3000 字</span>
+                        </div>
+                        <div class="tier-meta" data-i18n="simple.tierStdMeta">20 轮 · 均衡档 · 日常字体还原度佳</div>
+                      </button>
+                      <button class="tier-card" type="button" data-tier="coverage">
+                        <div class="tier-head">
+                          <span class="tier-name" data-i18n="simple.tierCovName">完整覆盖</span>
+                          <span class="pill ok">6000 字</span>
+                        </div>
+                        <div class="tier-meta" data-i18n="simple.tierCovMeta">30 轮 · 高质量 · 面向 GBK 大字库微调</div>
+                      </button>
+                    </div>
                   </div>
-                  <textarea id="simpleSpecimenTextarea" class="specimen-textarea compact" rows="3">永和九年，岁在癸丑，暮春之初。AaBbCc 0123456789</textarea>
+
+                  <div class="info-banner" id="simpleTrainNote">请先完成「1. 构建训练数据」，完成后再点击「2. 开始 LoRA 微调」。</div>
+
+                  <div class="action-row">
+                    <button class="btn" id="btnSimpleBuildDataset" type="button" data-i18n="simple.buildData">1. 构建训练数据</button>
+                    <button class="btn primary" id="btnSimpleStartTrain" type="button" data-i18n="simple.startTrain">2. 开始 LoRA 微调</button>
+                  </div>
                 </div>
-              </div>
+
+                <div class="step-footer">
+                  <button class="btn ghost" type="button" data-goto-step="2" data-i18n="simple.prev">上一步</button>
+                  <button class="btn" type="button" data-goto-step="4" data-i18n="simple.next4">下一步：导出字库</button>
+                </div>
+              </section>
+
+              <!-- Step 4 -->
+              <section class="panel step-panel" id="simplePane4">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title" data-i18n="simple.step4Title">导出可安装字库 (.ttf) 与实时试写</h2>
+                    <p class="panel-sub" data-i18n="simple.step4Sub">自动采用最新生成批次与推荐矢量化参数，导出后可直接下载并在线试写效果</p>
+                  </div>
+                  <span class="pill" id="simpleStep4Badge">待生成</span>
+                </div>
+
+                <div class="inline-action-row">
+                  <input id="simpleFontName" class="text-input" type="text" value="MyCustomFont" placeholder="输入字体名称，如：MyCustomFont" />
+                  <button class="btn primary" id="btnSimpleExportFont" type="button" data-i18n="simple.exportBtn">一键导出 TTF 字库</button>
+                  <button class="btn ghost" id="btnSimpleRefreshExport" type="button" data-i18n="common.refresh">刷新</button>
+                </div>
+
+                <div class="grid two-col">
+                  <div class="sub-panel">
+                    <div class="sub-panel-title" data-i18n="export.downloads">下载文件</div>
+                    <div id="simpleExportDownloads" class="file-list"></div>
+                  </div>
+                  <div class="sub-panel">
+                    <div class="sub-panel-title">
+                      <span data-i18n="export.livePreview">实时试写</span>
+                      <span class="pill" id="simpleSpecimenBadge">-</span>
+                    </div>
+                    <textarea id="simpleSpecimenInput" class="specimen-textarea compact" rows="4">永和九年，岁在癸丑，暮春之初。AaBbCc 0123456789</textarea>
+                  </div>
+                </div>
+
+                <div class="step-footer">
+                  <button class="btn ghost" type="button" data-goto-step="3" data-i18n="simple.prev">上一步</button>
+                  <button class="btn ghost" id="btnSimpleSwitchAdvanced" type="button" data-i18n="simple.openAdvanced">进入高级模式精细调参</button>
+                </div>
+              </section>
             </div>
+
+            <!-- Right Live Summary Rail -->
+            <aside class="studio-inspector">
+              <div class="panel inspector-panel">
+                <div class="panel-header compact">
+                  <h3 class="panel-title" data-i18n="simple.railTitle">当前项目快照</h3>
+                  <span class="pill" id="simpleRailProjectPill">-</span>
+                </div>
+                <div class="checklist" id="simpleChecklist"></div>
+              </div>
+
+              <div class="panel inspector-panel" id="simpleJobCard">
+                <div class="panel-header compact">
+                  <h3 class="panel-title" data-i18n="simple.railJobTitle">实时任务状态</h3>
+                  <button class="link-btn" id="btnSimpleViewJobLog" type="button" data-i18n="simple.viewLog">任务日志</button>
+                </div>
+                <div class="rail-job-body" id="simpleJobBanner">
+                  <div class="rail-job-top">
+                    <span class="pill" id="simpleJobBadge">空闲</span>
+                    <span class="muted" id="simpleJobName">当前无运行中任务</span>
+                  </div>
+                  <div class="rail-job-msg" id="simpleJobMsg">提交下载、建库、微调、生字或导出后，进度会显示在这里。</div>
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
 
-        <!-- VIEW 1: PROJECTS -->
+        <!-- =========================================================
+             ADVANCED 01: PROJECTS & PACKAGES
+             ========================================================= -->
         <section class="view active" id="view-projects">
-          <div class="grid-2">
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="createProjectTitle">新建项目</h2>
-                <span class="card-hint" data-i18n="createProjectHint">每个项目独立管理素材、数据集、微调权重与导出字库</span>
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title" data-i18n="projects.galleryTitle">工作区项目</h2>
+                <p class="panel-sub" data-i18n="projects.gallerySub">点击卡片即可切换当前项目，或直接输入名称快速新建</p>
               </div>
-              <div class="inline-form">
-                <input id="newProjectName" class="text-input" type="text" placeholder="例如：手写楷体 v1" />
-                <button id="createProjectBtn" class="btn btn-primary" type="button" data-i18n="createBtn">创建项目</button>
+              <div class="inline-action-row compact-row">
+                <input id="newProjectName" class="text-input" type="text" placeholder="新项目名称，例如：手写楷体" />
+                <button class="btn primary" id="btnCreateProject" type="button" data-i18n="projects.createBtn">创建项目</button>
               </div>
-              <div class="divider"></div>
-              <div class="card-head compact">
-                <h3 class="sub-title" data-i18n="projectListTitle">项目列表</h3>
-                <button class="btn btn-ghost btn-xs" id="refreshProjectsBtn" type="button" data-i18n="refresh">刷新</button>
-              </div>
-              <div id="projectList" class="item-list"></div>
             </div>
+            <div class="project-cards-grid" id="projectCardsGrid"></div>
+          </section>
 
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="currentProjectTitle">当前项目概览</h2>
+          <div class="studio-split balanced">
+            <section class="panel">
+              <div class="panel-header">
+                <h2 class="panel-title" data-i18n="projects.currentTitle">当前项目概览</h2>
+                <span class="pill" id="currentProjectIdPill">-</span>
               </div>
-              <div id="projectOverviewBody" class="kv-grid"></div>
-              <div class="divider"></div>
-              <div class="danger-row">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="confirmDeleteProject" />
-                  <span data-i18n="confirmDeleteProjectText">确认永久删除当前项目及其全部本地文件</span>
-                </label>
-                <button class="btn btn-danger btn-sm" id="deleteProjectBtn" type="button" data-i18n="deleteProjectBtn">删除项目</button>
-              </div>
-            </div>
-          </div>
+              <div class="kv-grid" id="projectSummaryKv"></div>
 
-          <div class="grid-2">
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="exportPackageTitle">导出项目迁移包</h2>
-                <span class="card-hint" data-i18n="exportPackageHint">将当前项目打包为 .zi2zi-project.zip 便于备份或迁移</span>
-              </div>
-              <label class="field">
-                <span class="field-label" data-i18n="packageMode">打包模式</span>
-                <select id="exportPackageMode" class="select-input">
-                  <option value="lightweight">lightweight (轻量：配置与关键权重)</option>
-                  <option value="full">full (完整：包含数据集与中间产物)</option>
-                </select>
-              </label>
-              <div class="action-row">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="exportIncludeShared" />
-                  <span data-i18n="includeSharedModels">同时打包共享基础模型</span>
-                </label>
-              </div>
-              <div class="action-row">
-                <button class="btn btn-secondary" id="exportPackageBtn" type="button" data-i18n="exportPackageBtn">开始导出项目包</button>
-              </div>
-              <div class="divider"></div>
-              <div class="sub-title" data-i18n="exportedPackagesTitle">已导出的迁移包</div>
-              <div id="exportPackagesList" class="file-list"></div>
-            </div>
+              <div class="step-divider"></div>
 
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="importPackageTitle">导入项目迁移包</h2>
-                <span class="card-hint" data-i18n="importPackageHint">先上传并检查包内容，再确认作为新项目导入</span>
+              <div class="danger-inline">
+                <div class="danger-inline-head">
+                  <span class="danger-title" data-i18n="projects.dangerTitle">删除当前项目</span>
+                  <span class="hint" data-i18n="projects.dangerSub">不可逆操作，会移除训练产出、字形与导出文件</span>
+                </div>
+                <div class="inline-action-row">
+                  <input id="deleteConfirmInput" class="text-input" type="text" placeholder="输入项目名称或 ID 以确认删除" />
+                  <button class="btn danger" id="btnDeleteProject" type="button" data-i18n="projects.deleteBtn">永久删除</button>
+                </div>
               </div>
-              <div class="dropzone" data-input="importPackageFile">
-                <input id="importPackageFile" type="file" accept=".zip" class="file-input-hidden" />
-                <div class="dropzone-text" data-i18n="dropPackage">点击选择或拖拽 .zi2zi-project.zip 文件</div>
-                <div class="dropzone-files" id="importPackageFileName"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <h2 class="panel-title" data-i18n="projects.packageTitle">可移植项目包</h2>
+                  <p class="panel-sub" data-i18n="projects.packageSub">跨机器迁移完整项目状态、权重与素材</p>
+                </div>
+                <button class="btn ghost compact" id="btnRefreshPackages" type="button" data-i18n="common.refresh">刷新</button>
               </div>
-              <div class="action-row">
-                <button class="btn btn-secondary" id="inspectPackageBtn" type="button" data-i18n="inspectPackageBtn">预检项目包</button>
+
+              <div class="sub-panel">
+                <div class="sub-panel-title" data-i18n="projects.exportTitle">打包当前项目</div>
+                <div class="check-row">
+                  <label class="checkbox-item"><input type="checkbox" id="pkgIncBase" checked /> <span data-i18n="projects.incBase">包含基础权重</span></label>
+                  <label class="checkbox-item"><input type="checkbox" id="pkgIncDataset" /> <span data-i18n="projects.incDataset">包含训练集</span></label>
+                  <label class="checkbox-item"><input type="checkbox" id="pkgIncGen" /> <span data-i18n="projects.incGen">包含生成批次</span></label>
+                </div>
+                <div class="action-row">
+                  <button class="btn primary" id="btnExportPackage" type="button" data-i18n="projects.exportBtn">导出项目包 (.zip)</button>
+                </div>
+                <div id="exportPackageResult" class="inline-result"></div>
               </div>
-              <div id="packageInspectionBox" class="inspect-box hidden"></div>
-              <div class="action-row hidden" id="confirmImportRow">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="confirmImportPackage" />
-                  <span data-i18n="confirmImportText">已核对内容，确认导入为新项目</span>
-                </label>
-                <button class="btn btn-primary btn-sm" id="importPackageBtn" type="button" data-i18n="importPackageBtn">确认导入</button>
+
+              <div class="sub-panel">
+                <div class="sub-panel-title" data-i18n="projects.importTitle">导入项目包</div>
+                <div class="field">
+                  <label class="field-label" for="packageUploadInput" data-i18n="projects.uploadZip">上传 .zip 项目包</label>
+                  <div class="dropzone" data-file-input="packageUploadInput">
+                    <input id="packageUploadInput" type="file" accept=".zip" />
+                    <div class="dropzone-text" data-i18n="projects.dropZip">点击或拖拽项目包文件到此处</div>
+                    <div class="dropzone-files" id="packageUploadFiles"></div>
+                  </div>
+                </div>
+                <div class="grid two-col">
+                  <div class="field">
+                    <label class="field-label" for="existingPackageSelect" data-i18n="projects.orExisting">或选择已有包</label>
+                    <select id="existingPackageSelect" class="select-input"></select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="importProjectName" data-i18n="projects.importName">导入后名称（可选）</label>
+                    <input id="importProjectName" class="text-input" type="text" placeholder="留空则使用原名" />
+                  </div>
+                </div>
+                <div class="action-row">
+                  <button class="btn ghost" id="btnInspectPackage" type="button" data-i18n="projects.inspectBtn">检查清单</button>
+                  <button class="btn primary" id="btnImportPackage" type="button" data-i18n="projects.importBtn">导入为新项目</button>
+                </div>
+                <div id="packageInspectResult" class="code-box hidden"></div>
               </div>
-            </div>
+            </section>
           </div>
         </section>
 
-        <!-- VIEW 2: ASSETS & MODELS -->
+        <!-- =========================================================
+             ADVANCED 02: ASSETS & MODELS (Workspace + Inspector)
+             ========================================================= -->
         <section class="view" id="view-assets">
-          <div class="card">
-            <div class="card-head">
-              <h2 class="card-title" data-i18n="baseModelTitle">基础模型管理</h2>
-              <span class="card-hint" data-i18n="baseModelHint">下载官方预训练模型、挂载共享库模型，或导入本地受信任权重</span>
-            </div>
-            <div class="grid-3">
-              <div class="sub-card">
-                <div class="sub-title" data-i18n="downloadOfficialTitle">官方预训练下载</div>
-                <label class="field">
-                  <span class="field-label" data-i18n="modelVariant">模型规格</span>
-                  <select id="officialModelSelect" class="select-input">
-                    <option value="JiT-B/16">JiT-B/16 (推荐，显存友好)</option>
-                    <option value="JiT-L/16">JiT-L/16 (更大容量)</option>
-                  </select>
-                </label>
-                <button class="btn btn-secondary btn-block" id="downloadOfficialBtn" type="button" data-i18n="downloadModelBtn">加入下载队列</button>
-              </div>
-
-              <div class="sub-card">
-                <div class="sub-title" data-i18n="sharedModelsTitle">本地共享模型库</div>
-                <label class="field">
-                  <span class="field-label" data-i18n="selectSharedModel">选择已有模型</span>
-                  <select id="sharedModelSelect" class="select-input"></select>
-                </label>
-                <div class="btn-group">
-                  <button class="btn btn-primary" id="attachSharedModelBtn" type="button" data-i18n="attachModelBtn">挂载到当前项目</button>
-                  <button class="btn btn-ghost" id="refreshSharedModelsBtn" type="button" data-i18n="refresh">刷新</button>
-                </div>
-              </div>
-
-              <div class="sub-card">
-                <div class="sub-title" data-i18n="uploadLocalModelTitle">导入本地 Checkpoint</div>
-                <div class="dropzone compact" data-input="localModelFile">
-                  <input id="localModelFile" type="file" accept=".pth,.pt,.ckpt" class="file-input-hidden" />
-                  <div class="dropzone-text" data-i18n="dropCheckpoint">选择 .pth / .pt / .ckpt</div>
-                  <div class="dropzone-files" id="localModelFileName"></div>
-                </div>
-                <label class="checkbox-label">
-                  <input type="checkbox" id="trustLocalModel" />
-                  <span data-i18n="trustCheckpointText">确认该权重来源可信 (pickle 加载确认)</span>
-                </label>
-                <button class="btn btn-secondary btn-block" id="uploadLocalModelBtn" type="button" data-i18n="importModelBtn">导入并挂载</button>
-              </div>
-            </div>
-            <div class="status-strip" id="currentModelStatus"></div>
-          </div>
-
-          <div class="card">
-            <div class="card-head">
-              <h2 class="card-title" data-i18n="fontAssetsTitle">源字体与目标风格素材</h2>
-              <span class="card-hint" data-i18n="fontAssetsHint">上传标准字形作为源字体，上传需要学习的风格字体或已渲染字形图作为目标素材</span>
-            </div>
-
-            <div class="segmented" id="inputModeSwitch" role="radiogroup">
-              <button class="seg-btn active" type="button" data-mode="font" data-i18n="modeFont">目标字体文件 (.ttf / .otf / .ttc)</button>
-              <button class="seg-btn" type="button" data-mode="glyphs" data-i18n="modeGlyphs">目标字形图片 (多张 .png / .jpg)</button>
-            </div>
-
-            <div class="grid-2">
-              <div class="field">
-                <span class="field-label" data-i18n="globalSourceFontsLabel">全局源字体（必选，可多选作为回退链）</span>
-                <div class="dropzone" data-input="sourceFontsInput">
-                  <input id="sourceFontsInput" type="file" multiple accept=".ttf,.otf,.ttc,.woff,.woff2" class="file-input-hidden" />
-                  <div class="dropzone-text" data-i18n="dropSourceFonts">点击或拖拽上传源字体文件</div>
-                  <div class="dropzone-files" id="sourceFontsFiles"></div>
-                </div>
-              </div>
-
-              <div class="field">
-                <span class="field-label" id="targetAssetsLabel">目标风格字体文件</span>
-                <div class="dropzone" data-input="targetAssetsInput">
-                  <input id="targetAssetsInput" type="file" multiple accept=".ttf,.otf,.ttc,.png,.jpg,.jpeg" class="file-input-hidden" />
-                  <div class="dropzone-text" id="targetDropText">点击或拖拽上传目标字体</div>
-                  <div class="dropzone-files" id="targetAssetsFiles"></div>
-                </div>
-              </div>
-            </div>
-
-            <details class="collapsible">
-              <summary data-i18n="regionalFontsSummary">可选：按地区覆盖源字体（SC / TC / JP / KR）</summary>
-              <div class="grid-4 regional-grid">
-                <div class="field">
-                  <span class="field-label">SC 简体源字体</span>
-                  <input id="scFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
-                </div>
-                <div class="field">
-                  <span class="field-label">TC 繁体源字体</span>
-                  <input id="tcFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
-                </div>
-                <div class="field">
-                  <span class="field-label">JP 日文源字体</span>
-                  <input id="jpFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
-                </div>
-                <div class="field">
-                  <span class="field-label">KR 韩文源字体</span>
-                  <input id="krFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
-                </div>
-              </div>
-            </details>
-
-            <div class="action-row">
-              <button class="btn btn-primary" id="saveAssetsBtn" type="button" data-i18n="saveAssetsBtn">保存素材并构建风格参考池</button>
-            </div>
-
-            <div class="divider"></div>
-            <div class="sub-title" data-i18n="savedAssetsTitle">当前项目已保存素材</div>
-            <div id="savedAssetsSummary" class="kv-grid"></div>
-          </div>
-        </section>
-
-        <!-- VIEW 3: DATASET & TRAINING -->
-        <section class="view" id="view-train">
-          <div class="grid-2">
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="datasetBuildTitle">构建训练数据集</h2>
-                <span class="card-hint" data-i18n="datasetBuildHint">从源字体与目标素材的公共字集中采样生成训练与验证对</span>
-              </div>
-
-              <div class="preset-strip">
-                <span class="micro-label" data-i18n="quickScale">快速规模预设</span>
-                <div class="btn-group">
-                  <button class="btn btn-ghost btn-xs dataset-preset-btn" data-preset="quick" type="button">快速验证 (500 / 8)</button>
-                  <button class="btn btn-ghost btn-xs dataset-preset-btn" data-preset="balanced" type="button">标准平衡 (3000 / 64)</button>
-                  <button class="btn btn-ghost btn-xs dataset-preset-btn" data-preset="coverage" type="button">高覆盖 (6000 / 128)</button>
-                </div>
-              </div>
-
-              <div class="form-grid-2">
-                <label class="field">
-                  <span class="field-label" data-i18n="trainCountLabel">训练字数</span>
-                  <input id="datasetTrainCount" class="text-input" type="number" min="9" value="3000" />
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="testCountLabel">验证字数</span>
-                  <input id="datasetTestCount" class="text-input" type="number" min="1" value="64" />
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="charsetFilterLabel">字符集范围</span>
-                  <select id="datasetCharset" class="select-input">
-                    <option value="auto">auto (自动公共字集)</option>
-                    <option value="gb2312">gb2312</option>
-                    <option value="gbk">gbk</option>
-                    <option value="big5">big5</option>
-                    <option value="jisx0208">jisx0208</option>
-                    <option value="ksx1001">ksx1001</option>
-                    <option value="all-cjk">all-cjk</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="workersLabel">渲染并行线程</span>
-                  <input id="datasetWorkers" class="text-input" type="number" min="1" max="32" value="4" />
-                </label>
-              </div>
-
-              <div class="action-row">
-                <button class="btn btn-secondary" id="checkCapacityBtn" type="button" data-i18n="checkCapacityBtn">检测可用字数上限</button>
-                <button class="btn btn-primary" id="buildDatasetBtn" type="button" data-i18n="buildDatasetBtn">提交数据集构建任务</button>
-              </div>
-              <div class="status-strip" id="datasetCapacityInfo"></div>
-            </div>
-
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="loraTrainingTitle">启动 LoRA 微调训练</h2>
-                <span class="card-hint" data-i18n="loraTrainingHint">基于已挂载的基础模型和数据集启动单卡微调</span>
-              </div>
-
-              <label class="field">
-                <span class="field-label" data-i18n="datasetPathLabel">数据集目录（留空自动使用最新数据集）</span>
-                <input id="trainDatasetPath" class="text-input mono" type="text" placeholder="自动解析当前项目最新数据集" />
-              </label>
-
-              <div class="form-grid-2">
-                <label class="field">
-                  <span class="field-label" data-i18n="trainDeviceLabel">训练设备</span>
-                  <select id="trainDevice" class="select-input"></select>
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="qualityProfileLabel">训练预设档位</span>
-                  <select id="trainQuality" class="select-input">
-                    <option value="economy">economy (省显存 / 更快)</option>
-                    <option value="balanced" selected>balanced (推荐平衡)</option>
-                    <option value="quality">quality (更高质量)</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="epochsLabel">训练轮数 (Epochs)</span>
-                  <input id="trainEpochs" class="text-input" type="number" min="1" max="5000" value="200" />
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="hflipLabel">水平翻转概率 (0.0 – 0.5)</span>
-                  <input id="trainHflip" class="text-input" type="number" min="0" max="0.5" step="0.05" value="0" />
-                </label>
-              </div>
-
-              <div class="action-row">
-                <button class="btn btn-primary" id="startTrainingBtn" type="button" data-i18n="startTrainingBtn">开始 LoRA 微调</button>
-              </div>
-
-              <div class="divider"></div>
-              <div class="sub-title" data-i18n="resumeRunTitle">续训或管理已有训练轮次</div>
-              <div class="inline-form">
-                <select id="manageRunSelect" class="select-input"></select>
-                <button class="btn btn-secondary" id="resumeRunBtn" type="button" data-i18n="resumeRunBtn">从 checkpoint-last 续训</button>
-              </div>
-              <div class="danger-row compact">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="confirmDeleteRun" />
-                  <span data-i18n="confirmDeleteRunText">确认删除所选训练记录及权重</span>
-                </label>
-                <button class="btn btn-danger btn-xs" id="deleteRunBtn" type="button" data-i18n="deleteRunBtn">删除记录</button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- VIEW 4: MONITOR -->
-        <section class="view" id="view-monitor">
-          <div class="card">
-            <div class="card-head">
-              <h2 class="card-title" data-i18n="monitorSelectTitle">训练运行选择与对比（最多 5 个）</h2>
-              <div class="btn-group">
-                <button class="btn btn-secondary btn-sm" id="refreshMonitorBtn" type="button" data-i18n="refreshMetrics">刷新指标</button>
-                <button class="btn btn-ghost btn-sm" id="exportMetricsBtn" type="button" data-i18n="exportMetrics">导出 CSV / JSON / PNG</button>
-              </div>
-            </div>
-            <div id="monitorRunsCheckboxes" class="chip-select-list"></div>
-            <div id="monitorSummaryBar" class="status-strip"></div>
-            <div id="monitorExportFiles" class="file-list"></div>
-          </div>
-
-          <div class="grid-2">
-            <div class="card chart-card">
-              <div class="card-head compact"><h3 class="sub-title">Loss</h3></div>
-              <div class="chart-host" id="chart-loss"></div>
-            </div>
-            <div class="card chart-card">
-              <div class="card-head compact"><h3 class="sub-title">Learning Rate</h3></div>
-              <div class="chart-host" id="chart-lr"></div>
-            </div>
-            <div class="card chart-card">
-              <div class="card-head compact"><h3 class="sub-title">GPU / RAM</h3></div>
-              <div class="chart-host" id="chart-resources"></div>
-            </div>
-            <div class="card chart-card">
-              <div class="card-head compact"><h3 class="sub-title">Evaluation (SSIM / LPIPS / L1 / FID)</h3></div>
-              <div class="chart-host" id="chart-evaluation"></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head compact">
-              <h3 class="sub-title" data-i18n="snapshotsTitle">字形演化快照（每对：目标真值 -> 当前生成）</h3>
-            </div>
-            <div id="monitorSnapshots" class="snapshot-grid"></div>
-          </div>
-
-          <div class="grid-2">
-            <div class="card">
-              <div class="card-head compact"><h3 class="sub-title" data-i18n="paramsTableTitle">超参数对比</h3></div>
-              <div class="table-wrap" id="monitorParamsTable"></div>
-            </div>
-            <div class="card">
-              <div class="card-head compact"><h3 class="sub-title" data-i18n="checkpointsAlertsTitle">检查点与告警记录</h3></div>
-              <div id="monitorCheckpoints"></div>
-              <div class="divider"></div>
-              <div id="monitorAlerts"></div>
-            </div>
-          </div>
-        </section>
-
-        <!-- VIEW 5: GENERATION -->
-        <section class="view" id="view-generate">
-          <div class="grid-2-wide">
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="charsetSelectionTitle">选择要生成的字符</h2>
-                <span class="card-hint" data-i18n="charsetSelectionHint">目标字体中已存在的字符会自动跳过，仅生成缺失字形</span>
-              </div>
-
-              <label class="field">
-                <span class="field-label" data-i18n="customTextLabel">自定义文本（直接输入或粘贴任意字符）</span>
-                <textarea id="genCustomText" class="text-area" rows="4" placeholder="例如：永和九年岁在癸丑暮春之初"></textarea>
-                <div class="field-meta"><span id="genCharCounter">0 个去重字符</span></div>
-              </label>
-
-              <div class="field">
-                <span class="field-label" data-i18n="presetCharsetsLabel">标准字符集预设</span>
-                <div id="genPresetsGrid" class="preset-grid"></div>
-              </div>
-
-              <div class="field">
-                <span class="field-label" data-i18n="customCharsetFileLabel">可选：上传自定义字符列表文件 (.txt)</span>
-                <div class="dropzone compact" data-input="genCustomFile">
-                  <input id="genCustomFile" type="file" accept=".txt,.json" class="file-input-hidden" />
-                  <div class="dropzone-text" data-i18n="dropCharsetFile">点击或拖拽上传字符表文件</div>
-                  <div class="dropzone-files" id="genCustomFileName"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-head">
-                <h2 class="card-title" data-i18n="genParamsTitle">推理参数</h2>
-              </div>
-
-              <label class="field">
-                <span class="field-label" data-i18n="genCheckpointLabel">生成权重 (LoRA / Base)</span>
-                <select id="genCheckpointSelect" class="select-input"></select>
-              </label>
-
-              <div class="form-grid-2">
-                <label class="field">
-                  <span class="field-label" data-i18n="genDeviceLabel">推理设备</span>
-                  <select id="genDeviceSelect" class="select-input"></select>
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="primaryRegionLabel">主地区字形</span>
-                  <select id="genPrimaryRegion" class="select-input">
-                    <option value="SC">SC (简体)</option>
-                    <option value="TC">TC (繁体)</option>
-                    <option value="JP">JP (日文)</option>
-                    <option value="KR">KR (韩文)</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="seedLabel">随机种子 (Seed)</span>
-                  <input id="genSeed" class="text-input" type="number" value="42" />
-                </label>
-                <label class="field">
-                  <span class="field-label" data-i18n="candidatesLabel">每字候选数 (1–8)</span>
-                  <input id="genCandidates" class="text-input" type="number" min="1" max="8" value="1" />
-                </label>
-              </div>
-
-              <label class="checkbox-label">
-                <input type="checkbox" id="genSplitRegions" checked />
-                <span data-i18n="splitRegionsText">按地区拆分子任务（使用对应地区源字体渲染）</span>
-              </label>
-
-              <label class="checkbox-label">
-                <input type="checkbox" id="genUnlockCandidates" />
-                <span data-i18n="unlockCandidatesText">解锁超过 64 字时的多候选生成保护</span>
-              </label>
-
-              <div class="action-row">
-                <button class="btn btn-primary btn-block" id="submitGenerationBtn" type="button" data-i18n="submitGenerationBtn">提交字形生成任务</button>
-              </div>
-              <div class="status-strip" id="generationResultStrip"></div>
-            </div>
-          </div>
-        </section>
-
-        <!-- VIEW 6: REVIEW & EXPORT -->
-        <section class="view" id="view-review">
-          <div class="segmented" id="reviewSubTabs">
-            <button class="seg-btn active" type="button" data-subtab="review-panel" data-i18n="subtabReview">字形审阅与候选选优</button>
-            <button class="seg-btn" type="button" data-subtab="export-panel" data-i18n="subtabExport">矢量化与字库导出</button>
-          </div>
-
-          <div class="subtab-panel active" id="review-panel">
-            <div class="card">
-              <div class="toolbar">
-                <select id="reviewBatchSelect" class="select-input toolbar-grow"></select>
-                <input id="reviewSearchInput" class="text-input" type="text" placeholder="搜索字符或码位 (如 永 / U+6C38)" />
-                <button class="btn btn-secondary" id="reviewRefreshBtn" type="button" data-i18n="loadBatch">载入批次</button>
-              </div>
-
-              <div class="review-layout">
-                <div class="review-main">
-                  <div id="reviewGlyphGrid" class="glyph-grid"></div>
-                  <div class="pager">
-                    <button class="btn btn-ghost btn-sm" id="reviewPrevPage" type="button" data-i18n="prevPage">上一页</button>
-                    <span class="pager-info" id="reviewPageInfo">1 / 1</span>
-                    <button class="btn btn-ghost btn-sm" id="reviewNextPage" type="button" data-i18n="nextPage">下一页</button>
+          <div class="studio-split">
+            <div class="studio-main">
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title" data-i18n="assets.fontTitle">参考源字体与目标风格素材</h2>
+                    <p class="panel-sub" data-i18n="assets.fontSub">源字体决定标准骨架结构，目标素材提供笔触与风格参考</p>
+                  </div>
+                  <div class="segmented" id="inputModeGroup">
+                    <button class="seg-btn active" type="button" data-mode="font" data-i18n="assets.modeFont">字体文件</button>
+                    <button class="seg-btn" type="button" data-mode="glyph_images" data-i18n="assets.modeImages">已渲染字形图</button>
                   </div>
                 </div>
 
-                <aside class="inspector" id="candidateInspector">
-                  <div class="sub-title" data-i18n="candidateInspectorTitle">候选对比</div>
-                  <div id="candidateInspectorBody" class="empty-state">点击左侧任意字形查看并切换候选图</div>
-                </aside>
-              </div>
+                <div class="grid two-col">
+                  <div class="field">
+                    <label class="field-label" data-i18n="assets.sourceFonts">默认源字体（可多选，按顺序回退）</label>
+                    <div class="dropzone tall" data-file-input="sourceFontsInput">
+                      <input id="sourceFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" />
+                      <div class="dropzone-text" data-i18n="assets.dropSource">拖拽或选择源字体 (.ttf / .otf / .ttc)</div>
+                      <div class="dropzone-files" id="sourceFontsFiles"></div>
+                    </div>
+                  </div>
+
+                  <div class="field" id="targetFontBlock">
+                    <label class="field-label" data-i18n="assets.targetFont">目标风格字体</label>
+                    <div class="dropzone tall" data-file-input="targetFontInput">
+                      <input id="targetFontInput" type="file" accept=".ttf,.otf,.ttc" />
+                      <div class="dropzone-text" data-i18n="assets.dropTarget">拖拽或选择目标字体文件</div>
+                      <div class="dropzone-files" id="targetFontFiles"></div>
+                    </div>
+                  </div>
+
+                  <div class="field hidden" id="targetImagesBlock">
+                    <label class="field-label" data-i18n="assets.targetImages">目标字形图片 / 压缩包</label>
+                    <div class="dropzone tall" data-file-input="targetImagesInput">
+                      <input id="targetImagesInput" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.zip" />
+                      <div class="dropzone-text" data-i18n="assets.dropImages">上传多张字形图或 .zip 压缩包</div>
+                      <div class="dropzone-files" id="targetImagesFiles"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid two-col">
+                  <div class="field">
+                    <label class="field-label" for="styleRefCount" data-i18n="assets.styleRefCount">风格参考图抽取数量</label>
+                    <input id="styleRefCount" class="text-input" type="number" min="4" max="256" value="24" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="targetImagesDir" data-i18n="assets.targetDir">已渲染图目录（仅字形图模式可选）</label>
+                    <input id="targetImagesDir" class="text-input" type="text" placeholder="可选：直接填写本地字形图片目录路径" />
+                  </div>
+                </div>
+
+                <details class="collapsible">
+                  <summary data-i18n="assets.regionOverrides">按地区指定源字体覆盖（SC / TC / JP / KR，可选）</summary>
+                  <div class="grid two-col collapsible-body">
+                    <div class="field">
+                      <label class="field-label">SC (简体)</label>
+                      <input id="sourceScInput" class="text-input" type="file" multiple accept=".ttf,.otf,.ttc" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label">TC (繁体)</label>
+                      <input id="sourceTcInput" class="text-input" type="file" multiple accept=".ttf,.otf,.ttc" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label">JP (日文)</label>
+                      <input id="sourceJpInput" class="text-input" type="file" multiple accept=".ttf,.otf,.ttc" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label">KR (韩文)</label>
+                      <input id="sourceKrInput" class="text-input" type="file" multiple accept=".ttf,.otf,.ttc" />
+                    </div>
+                  </div>
+                </details>
+
+                <div class="action-row">
+                  <button class="btn primary" id="btnSaveAssets" type="button" data-i18n="assets.saveAssets">保存素材并准备风格参考</button>
+                </div>
+                <div class="kv-grid" id="assetStatusKv"></div>
+              </section>
             </div>
-          </div>
 
-          <div class="subtab-panel" id="export-panel">
-            <div class="grid-2">
-              <div class="card">
-                <div class="card-head">
-                  <h2 class="card-title" data-i18n="fontBuildTitle">导出 TrueType 字库 (.ttf)</h2>
-                  <span class="card-hint" data-i18n="fontBuildHint">将审阅后的字形批量矢量化，并合入目标底字生成可安装字库</span>
+            <aside class="studio-inspector">
+              <section class="panel inspector-panel">
+                <div class="panel-header compact">
+                  <h3 class="panel-title" data-i18n="assets.modelTitle">基础模型库</h3>
+                  <button class="link-btn" id="btnRefreshModels" type="button" data-i18n="common.refresh">刷新</button>
                 </div>
 
-                <label class="field">
-                  <span class="field-label" data-i18n="exportBatchLabel">选择生成批次</span>
-                  <select id="exportBatchSelect" class="select-input"></select>
-                </label>
+                <div class="kv-grid single-col" id="modelStatusKv"></div>
 
-                <div class="form-grid-2">
-                  <label class="field">
-                    <span class="field-label" data-i18n="fontFamilyLabel">字体家族名 (英文 / ASCII 推荐)</span>
-                    <input id="exportFamily" class="text-input" type="text" value="MyCustomFont" />
-                  </label>
-                  <label class="field">
-                    <span class="field-label" data-i18n="fontStyleLabel">字重样式</span>
-                    <input id="exportStyle" class="text-input" type="text" value="Regular" />
-                  </label>
-                  <label class="field">
-                    <span class="field-label" data-i18n="fontVersionLabel">版本号</span>
-                    <input id="exportVersion" class="text-input" type="text" value="1.000" />
-                  </label>
-                  <label class="field">
-                    <span class="field-label" data-i18n="fontDesignerLabel">作者 / 设计师</span>
-                    <input id="exportDesigner" class="text-input" type="text" placeholder="可选" />
-                  </label>
-                </div>
+                <div class="step-divider"></div>
 
-                <label class="field">
-                  <span class="field-label" data-i18n="fontLicenseLabel">许可声明</span>
-                  <input id="exportLicense" class="text-input" type="text" placeholder="例如：SIL Open Font License 1.1" />
-                </label>
-
-                <div class="form-grid-2">
-                  <label class="field">
-                    <span class="field-label" data-i18n="thresholdLabel">二值化阈值 (0–255)</span>
-                    <input id="exportThreshold" class="text-input" type="number" min="1" max="254" value="180" />
-                  </label>
-                  <label class="field">
-                    <span class="field-label" data-i18n="despeckleLabel">去噪面积阈值</span>
-                    <input id="exportDespeckle" class="text-input" type="number" min="0" max="100" value="4" />
-                  </label>
+                <div class="field">
+                  <label class="field-label" for="sharedModelSelect" data-i18n="assets.sharedModels">挂载共享模型</label>
+                  <div class="inline-action-row">
+                    <select id="sharedModelSelect" class="select-input"></select>
+                    <button class="btn" id="btnAttachSharedModel" type="button" data-i18n="assets.attachShared">挂载</button>
+                  </div>
                 </div>
 
                 <div class="field">
-                  <span class="field-label" data-i18n="profilesLabel">排版规格</span>
-                  <div class="check-row">
-                    <label class="checkbox-label">
-                      <input type="checkbox" id="profileProportional" checked />
-                      <span>proportional (比例文本字库)</span>
-                    </label>
-                    <label class="checkbox-label">
-                      <input type="checkbox" id="profileMono" />
-                      <span>monospace-2to1 (等宽编程字库)</span>
-                    </label>
+                  <label class="field-label" data-i18n="assets.downloadTitle">下载官方预训练模型</label>
+                  <div class="grid two-col">
+                    <select id="downloadSourceSelect" class="select-input">
+                      <option value="huggingface">Hugging Face</option>
+                      <option value="hf-mirror">HF Mirror (中国镜像)</option>
+                      <option value="modelscope">ModelScope</option>
+                    </select>
+                    <select id="downloadVariantSelect" class="select-input">
+                      <option value="JiT-B/16">JiT-B/16</option>
+                      <option value="JiT-B/32">JiT-B/32</option>
+                      <option value="JiT-L/16">JiT-L/16</option>
+                      <option value="JiT-L/32">JiT-L/32</option>
+                    </select>
+                  </div>
+                  <button class="btn primary full" id="btnDownloadModel" type="button" data-i18n="assets.downloadBtn">下载并自动挂载</button>
+                </div>
+
+                <details class="collapsible">
+                  <summary data-i18n="assets.importTitle">导入本地权重 (.pth / .pt)</summary>
+                  <div class="collapsible-body">
+                    <div class="field">
+                      <label class="field-label" for="importModelFile" data-i18n="assets.importFile">选择本地文件</label>
+                      <input id="importModelFile" class="text-input" type="file" accept=".pth,.pt" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="importModelPath" data-i18n="assets.importPath">或服务器路径</label>
+                      <input id="importModelPath" class="text-input" type="text" placeholder="本地 .pth 绝对路径" />
+                    </div>
+                    <div class="action-row">
+                      <button class="btn" id="btnImportBaseModel" type="button" data-i18n="assets.importBase">设为基模</button>
+                      <button class="btn ghost" id="btnImportResumeModel" type="button" data-i18n="assets.importResume">存为续训权重</button>
+                    </div>
+                  </div>
+                </details>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <!-- =========================================================
+             ADVANCED 03: DATASET & TRAINING (Workspace + Inspector)
+             ========================================================= -->
+        <section class="view" id="view-training">
+          <div class="studio-split">
+            <div class="studio-main">
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title" data-i18n="train.datasetTitle">构建训练数据集</h2>
+                    <p class="panel-sub" data-i18n="train.datasetSub">选择预设规模或自定义字数，构建供 LoRA 微调使用的训练与验证集</p>
+                  </div>
+                  <div class="pill-row">
+                    <button class="btn ghost compact" type="button" data-ds-preset="quick" data-i18n="train.presetQuick">快速 500</button>
+                    <button class="btn ghost compact" type="button" data-ds-preset="balanced" data-i18n="train.presetBalanced">均衡 3000</button>
+                    <button class="btn ghost compact" type="button" data-ds-preset="coverage" data-i18n="train.presetCoverage">覆盖 6000</button>
+                  </div>
+                </div>
+
+                <div class="grid three-col">
+                  <div class="field">
+                    <label class="field-label" for="dsCharset" data-i18n="train.charset">基础字集</label>
+                    <select id="dsCharset" class="select-input">
+                      <option value="auto" selected>自动（公共字符集）</option>
+                      <option value="gbk">GBK</option>
+                      <option value="gb2312">GB2312</option>
+                      <option value="big5">Big5</option>
+                      <option value="jisx0208">JIS X 0208</option>
+                      <option value="ksx1001">KS X 1001</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="dsTrainCount" data-i18n="train.trainCount">训练字数</label>
+                    <input id="dsTrainCount" class="text-input" type="number" min="16" max="30000" value="3000" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="dsTestCount" data-i18n="train.testCount">验证字数</label>
+                    <input id="dsTestCount" class="text-input" type="number" min="4" max="2048" value="64" />
+                  </div>
+                </div>
+
+                <div class="grid two-col">
+                  <div class="field">
+                    <label class="field-label" for="dsImgSize" data-i18n="train.imgSize">图像尺寸</label>
+                    <input id="dsImgSize" class="text-input" type="number" min="64" max="512" step="32" value="256" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="dsSeed" data-i18n="train.seed">随机种子</label>
+                    <input id="dsSeed" class="text-input" type="number" value="42" />
                   </div>
                 </div>
 
                 <div class="action-row">
-                  <button class="btn btn-primary" id="buildFontBtn" type="button" data-i18n="buildFontBtn">开始构建字库</button>
+                  <button class="btn ghost" id="btnCheckCapacity" type="button" data-i18n="train.checkCapacity">检测字体可用字数</button>
+                  <button class="btn primary" id="btnBuildDataset" type="button" data-i18n="train.buildDataset">构建训练数据</button>
                 </div>
-              </div>
+                <div id="capacityResult" class="inline-result"></div>
+              </section>
 
-              <div class="card">
-                <div class="card-head compact">
-                  <h2 class="card-title" data-i18n="artifactsPreviewTitle">导出产物与实时试写</h2>
-                  <button class="btn btn-ghost btn-xs" id="refreshArtifactsBtn" type="button" data-i18n="refresh">刷新</button>
-                </div>
-
-                <div class="specimen-box">
-                  <div class="specimen-controls">
-                    <span class="micro-label" id="previewFontBadge">暂无可预览字库</span>
-                    <label class="range-inline">
-                      <span>字号</span>
-                      <input id="specimenSizeRange" type="range" min="16" max="72" value="32" />
-                      <span id="specimenSizeVal">32px</span>
-                    </label>
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title" data-i18n="train.startTitle">启动 LoRA 微调</h2>
+                    <p class="panel-sub" data-i18n="train.startSub">根据设备显存自动适配安全批大小，也可在下方展开细节覆写</p>
                   </div>
-                  <textarea id="specimenTextarea" class="specimen-input" rows="3">永和九年，岁在癸丑，暮春之初。The quick brown fox jumps over 0123456789.</textarea>
                 </div>
 
-                <div class="divider"></div>
-                <div class="sub-title" data-i18n="downloadableFilesTitle">下载文件</div>
-                <div id="exportArtifactsList" class="file-list"></div>
+                <div class="grid three-col">
+                  <div class="field">
+                    <label class="field-label" for="trainDeviceSelect" data-i18n="train.device">训练设备</label>
+                    <select id="trainDeviceSelect" class="select-input"></select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="trainQualitySelect" data-i18n="train.quality">显存与质量档位</label>
+                    <select id="trainQualitySelect" class="select-input">
+                      <option value="economy">经济（低显存）</option>
+                      <option value="balanced" selected>均衡（推荐）</option>
+                      <option value="quality">高质量（高显存）</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="trainEpochs" data-i18n="train.epochs">训练轮数 (Epochs)</label>
+                    <input id="trainEpochs" class="text-input" type="number" min="1" max="500" value="20" />
+                  </div>
+                </div>
 
-                <div class="divider"></div>
-                <div class="sub-title" data-i18n="svgPreviewTitle">SVG 矢量化抽样</div>
-                <div id="exportSvgGrid" class="svg-grid"></div>
+                <div class="field">
+                  <label class="field-label" for="trainDatasetPath" data-i18n="train.datasetPath">数据集路径（留空则使用当前项目最新数据集）</label>
+                  <input id="trainDatasetPath" class="text-input" type="text" placeholder="自动使用当前项目已构建数据集" />
+                </div>
+
+                <details class="collapsible">
+                  <summary data-i18n="train.advancedParams">展开高级超参数（Model / Batch / LR / LoRA Rank / Save Freq）</summary>
+                  <div class="grid three-col collapsible-body">
+                    <div class="field">
+                      <label class="field-label" for="trainModel">模型架构</label>
+                      <select id="trainModel" class="select-input">
+                        <option value="JiT-B/16">JiT-B/16</option>
+                        <option value="JiT-B/32">JiT-B/32</option>
+                        <option value="JiT-L/16">JiT-L/16</option>
+                        <option value="JiT-L/32">JiT-L/32</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="trainBatchSize">Batch Size</label>
+                      <input id="trainBatchSize" class="text-input" type="number" min="1" max="128" placeholder="自动" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="trainLr">Learning Rate</label>
+                      <input id="trainLr" class="text-input" type="number" step="0.00001" placeholder="自动" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="trainLoraRank">LoRA Rank</label>
+                      <input id="trainLoraRank" class="text-input" type="number" min="4" max="256" placeholder="自动" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="trainSaveFreq">Save Freq (Epoch)</label>
+                      <input id="trainSaveFreq" class="text-input" type="number" min="1" max="100" value="5" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="trainEvalFreq">Eval Freq (Epoch)</label>
+                      <input id="trainEvalFreq" class="text-input" type="number" min="1" max="100" value="5" />
+                    </div>
+                  </div>
+                </details>
+
+                <div class="action-row">
+                  <button class="btn primary" id="btnStartTraining" type="button" data-i18n="train.startBtn">开始微调训练</button>
+                </div>
+              </section>
+            </div>
+
+            <aside class="studio-inspector">
+              <section class="panel inspector-panel">
+                <div class="panel-header compact">
+                  <h3 class="panel-title" data-i18n="train.runsTitle">历史训练轮次</h3>
+                  <span class="pill" id="trainRunsCountPill">0</span>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="resumeRunSelect" data-i18n="train.selectRun">选择训练轮次</label>
+                  <select id="resumeRunSelect" class="select-input"></select>
+                </div>
+                <div class="grid two-col">
+                  <div class="field">
+                    <label class="field-label" for="resumeExtraEpochs" data-i18n="train.extraEpochs">续训轮数</label>
+                    <input id="resumeExtraEpochs" class="text-input" type="number" min="1" max="500" value="10" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="resumeCheckpointPath" data-i18n="train.resumeCkpt">自定义权重</label>
+                    <input id="resumeCheckpointPath" class="text-input" type="text" placeholder="留空自动" />
+                  </div>
+                </div>
+                <div class="action-row">
+                  <button class="btn primary" id="btnResumeTraining" type="button" data-i18n="train.resumeBtn">续训所选</button>
+                  <button class="btn danger" id="btnDeleteRun" type="button" data-i18n="train.deleteRunBtn">删除</button>
+                </div>
+                <div class="step-divider"></div>
+                <div class="run-cards-list" id="trainRunsTable"></div>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <!-- =========================================================
+             ADVANCED 04: TRAINING MONITOR
+             ========================================================= -->
+        <section class="view" id="view-monitor">
+          <section class="panel compact-panel">
+            <div class="toolbar-row">
+              <div class="toolbar-left">
+                <span class="toolbar-label" data-i18n="monitor.compareRuns">对比运行</span>
+                <div class="chip-group" id="monitorRunChips"></div>
               </div>
+              <div class="toolbar-right">
+                <button class="btn ghost compact" id="btnRefreshMonitor" type="button" data-i18n="common.refresh">刷新</button>
+                <button class="btn ghost compact" id="btnExportMetricsCsv" type="button">CSV</button>
+                <button class="btn ghost compact" id="btnExportMetricsJson" type="button">JSON</button>
+                <a class="btn ghost compact" id="monitorTbLink" href="http://127.0.0.1:6006" target="_blank" rel="noopener noreferrer">TensorBoard</a>
+              </div>
+            </div>
+          </section>
+
+          <div class="kpi-strip" id="monitorKpiStrip"></div>
+          <div id="monitorAlerts" class="alert-stack"></div>
+
+          <div class="grid two-col">
+            <section class="panel chart-panel">
+              <div class="panel-header compact">
+                <h3 class="panel-title">Loss</h3>
+                <span class="muted" id="chartLossMeta"></span>
+              </div>
+              <div class="chart-host" id="chartLoss"></div>
+            </section>
+            <section class="panel chart-panel">
+              <div class="panel-header compact">
+                <h3 class="panel-title">Eval Metrics (SSIM / LPIPS)</h3>
+                <span class="muted" id="chartEvalMeta"></span>
+              </div>
+              <div class="chart-host" id="chartEval"></div>
+            </section>
+            <section class="panel chart-panel">
+              <div class="panel-header compact">
+                <h3 class="panel-title">Learning Rate</h3>
+                <span class="muted" id="chartLrMeta"></span>
+              </div>
+              <div class="chart-host" id="chartLr"></div>
+            </section>
+            <section class="panel chart-panel">
+              <div class="panel-header compact">
+                <h3 class="panel-title">System (GPU Memory / Step Time)</h3>
+                <span class="muted" id="chartSysMeta"></span>
+              </div>
+              <div class="chart-host" id="chartSys"></div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-header compact">
+              <h2 class="panel-title" data-i18n="monitor.snapshotsTitle">验证字形演化快照</h2>
+              <span class="muted" id="monitorSnapshotMeta"></span>
+            </div>
+            <div class="snapshot-grid" id="monitorSnapshots"></div>
+          </section>
+
+          <div class="grid two-col">
+            <section class="panel">
+              <div class="panel-header compact"><h2 class="panel-title" data-i18n="monitor.hyperTitle">超参数对比</h2></div>
+              <div class="table-wrap" id="monitorHyperTable"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-header compact"><h2 class="panel-title" data-i18n="monitor.ckptTitle">检查点摘要</h2></div>
+              <div class="table-wrap" id="monitorCkptTable"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- =========================================================
+             ADVANCED 05: GENERATION (Workspace + Inspector)
+             ========================================================= -->
+        <section class="view" id="view-generate">
+          <div class="studio-split">
+            <div class="studio-main">
+              <section class="panel">
+                <div class="panel-header">
+                  <div>
+                    <h2 class="panel-title" data-i18n="gen.charsTitle">目标字集与字符输入</h2>
+                    <p class="panel-sub" data-i18n="gen.charsSub">默认主推 GBK 字符集，可与自定义文本或文本文件自由组合去重</p>
+                  </div>
+                  <span class="pill accent" id="genCharCount">0 个唯一字符</span>
+                </div>
+
+                <div class="field">
+                  <div class="label-row">
+                    <label class="field-label" for="genText" data-i18n="gen.textInput">自定义文本（可选）</label>
+                    <button class="link-btn" id="btnGenFillSample" type="button" data-i18n="simple.fillSample">填入示例文本</button>
+                  </div>
+                  <textarea id="genText" class="textarea-input" rows="3" placeholder="输入想要生成的任意汉字、标点或字母，例如：永和九年岁在癸丑暮春之初"></textarea>
+                </div>
+
+                <div class="field">
+                  <div class="label-row">
+                    <label class="field-label" data-i18n="gen.primaryPresets">常用字符集（主用 GBK）</label>
+                    <button class="link-btn" id="btnGenClearPresets" type="button" data-i18n="simple.clearPresets">清空勾选</button>
+                  </div>
+                  <div class="preset-card-grid" id="genPrimaryPresets"></div>
+                </div>
+
+                <details class="collapsible" id="genMorePresetsWrap">
+                  <summary data-i18n="gen.morePresets">更多地区与扩展字符集（繁体 / 日文 / 韩文 / 欧洲拉丁）</summary>
+                  <div class="preset-grid collapsible-body" id="genExtraPresets"></div>
+                </details>
+
+                <div class="field">
+                  <label class="field-label" for="genCharsetFile" data-i18n="gen.charsetFile">或上传自定义字符文本 (.txt)</label>
+                  <input id="genCharsetFile" class="text-input" type="file" accept=".txt" />
+                </div>
+              </section>
+            </div>
+
+            <aside class="studio-inspector">
+              <section class="panel inspector-panel">
+                <div class="panel-header compact">
+                  <h3 class="panel-title" data-i18n="gen.paramsTitle">推理参数</h3>
+                </div>
+
+                <div class="field">
+                  <label class="field-label" for="genCheckpointSelect" data-i18n="gen.checkpoint">推理权重</label>
+                  <select id="genCheckpointSelect" class="select-input"></select>
+                </div>
+
+                <div class="field">
+                  <label class="field-label" for="genDeviceSelect" data-i18n="gen.device">推理设备</label>
+                  <select id="genDeviceSelect" class="select-input"></select>
+                </div>
+
+                <div class="grid two-col">
+                  <div class="field">
+                    <label class="field-label" for="genRegionSelect" data-i18n="gen.region">源字体地区</label>
+                    <select id="genRegionSelect" class="select-input">
+                      <option value="DEFAULT">默认</option>
+                      <option value="SC">SC (简体)</option>
+                      <option value="TC">TC (繁体)</option>
+                      <option value="JP">JP (日文)</option>
+                      <option value="KR">KR (韩文)</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="genBatchSize" data-i18n="gen.batchSize">批大小</label>
+                    <input id="genBatchSize" class="text-input" type="number" min="1" max="128" value="16" />
+                  </div>
+                </div>
+
+                <div class="grid two-col">
+                  <div class="field">
+                    <label class="field-label" for="genCandidates" data-i18n="gen.candidates">每字候选数</label>
+                    <input id="genCandidates" class="text-input" type="number" min="1" max="8" value="1" />
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="genSeed" data-i18n="gen.seed">随机种子</label>
+                    <input id="genSeed" class="text-input" type="number" value="0" />
+                  </div>
+                </div>
+
+                <div class="step-divider"></div>
+                <button class="btn primary full lg" id="btnStartGeneration" type="button" data-i18n="gen.startBtn">开始生成字形</button>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <!-- =========================================================
+             ADVANCED 06: REVIEW & EXPORT
+             ========================================================= -->
+        <section class="view" id="view-review">
+          <div class="subtab-bar">
+            <div class="segmented" id="reviewExportTabs">
+              <button class="seg-btn active" type="button" data-subtab="review" data-i18n="review.tabReview">字形审阅与挑图</button>
+              <button class="seg-btn" type="button" data-subtab="export" data-i18n="review.tabExport">字库导出与试写</button>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn ghost compact" id="btnRefreshReview" type="button" data-i18n="common.refresh">刷新</button>
+            </div>
+          </div>
+
+          <div class="subtab-pane active" id="subtab-review">
+            <section class="panel compact-panel">
+              <div class="toolbar-row">
+                <div class="toolbar-left wrap">
+                  <select id="reviewBatchSelect" class="select-input w-220"></select>
+                  <input id="reviewQueryInput" class="text-input w-180" type="text" placeholder="搜索字符或编码..." />
+                  <select id="reviewFilterSelect" class="select-input w-150">
+                    <option value="all">全部字符</option>
+                    <option value="needs_attention">待关注</option>
+                    <option value="multi_candidate">多候选</option>
+                    <option value="missing">缺失</option>
+                  </select>
+                </div>
+                <div class="toolbar-right">
+                  <span class="muted" id="reviewSummaryText">-</span>
+                  <div class="pager">
+                    <button class="btn ghost compact" id="btnReviewPrev" type="button">&lt;</button>
+                    <span class="pager-label" id="reviewPageLabel">1 / 1</span>
+                    <button class="btn ghost compact" id="btnReviewNext" type="button">&gt;</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div class="review-layout">
+              <section class="panel">
+                <div class="glyph-grid" id="reviewGlyphGrid"></div>
+              </section>
+              <aside class="panel inspector-panel">
+                <div class="panel-header compact">
+                  <h3 class="panel-title" id="candidateTitle" data-i18n="review.candidatesTitle">候选字形对比</h3>
+                  <span class="pill" id="candidateCharCode">-</span>
+                </div>
+                <div id="candidateList" class="candidate-list">
+                  <div class="empty-state" data-i18n="review.pickHint">在左侧点击任意字符查看全部候选</div>
+                </div>
+              </aside>
+            </div>
+          </div>
+
+          <div class="subtab-pane" id="subtab-export">
+            <div class="studio-split">
+              <div class="studio-main">
+                <section class="panel">
+                  <div class="panel-header compact">
+                    <div>
+                      <h2 class="panel-title" data-i18n="export.livePreview">实时字库试写台</h2>
+                      <p class="panel-sub" data-i18n="export.livePreviewSub">导出 TTF 后自动加载为浏览器字体，自由输入测试排版效果</p>
+                    </div>
+                    <div class="specimen-controls">
+                      <label class="muted" for="specimenSizeRange" id="specimenSizeLabel">36px</label>
+                      <input id="specimenSizeRange" type="range" min="18" max="72" value="36" />
+                      <span class="pill" id="specimenFontBadge">-</span>
+                    </div>
+                  </div>
+                  <textarea id="specimenInput" class="specimen-textarea" rows="5">永和九年，岁在癸丑，暮春之初，会于会稽山阴之兰亭。AaBbCc 0123456789</textarea>
+                </section>
+
+                <div class="grid two-col">
+                  <section class="panel">
+                    <div class="panel-header compact">
+                      <h3 class="panel-title" data-i18n="export.downloads">导出产物下载</h3>
+                      <button class="link-btn" id="btnRefreshArtifacts" type="button" data-i18n="common.refresh">刷新</button>
+                    </div>
+                    <div id="exportDownloadList" class="file-list"></div>
+                  </section>
+                  <section class="panel">
+                    <div class="panel-header compact">
+                      <h3 class="panel-title" data-i18n="export.svgSamples">矢量 SVG 抽样</h3>
+                    </div>
+                    <div id="exportSvgGrid" class="svg-grid"></div>
+                  </section>
+                </div>
+              </div>
+
+              <aside class="studio-inspector">
+                <section class="panel inspector-panel">
+                  <div class="panel-header compact">
+                    <h3 class="panel-title" data-i18n="export.buildTitle">字库导出设置</h3>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="exportBatchSelect" data-i18n="export.batch">来源生成批次</label>
+                    <select id="exportBatchSelect" class="select-input"></select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="exportFontName" data-i18n="export.fontName">字体名称</label>
+                    <input id="exportFontName" class="text-input" type="text" value="MyCustomFont" />
+                  </div>
+                  <div class="grid two-col">
+                    <div class="field">
+                      <label class="field-label" for="exportFormat" data-i18n="export.format">输出格式</label>
+                      <select id="exportFormat" class="select-input">
+                        <option value="ttf">TrueType (.ttf)</option>
+                        <option value="svg_dir">仅矢量 (.svg)</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="exportBackend" data-i18n="export.backend">矢量化引擎</label>
+                      <select id="exportBackend" class="select-input">
+                        <option value="auto">Auto</option>
+                        <option value="potrace">Potrace</option>
+                        <option value="vtracer">VTracer</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid two-col">
+                    <div class="field">
+                      <label class="field-label" for="exportThreshold" data-i18n="export.threshold">二值化阈值</label>
+                      <input id="exportThreshold" class="text-input" type="number" min="1" max="254" value="128" />
+                    </div>
+                    <div class="field">
+                      <label class="field-label" for="exportTurdsize" data-i18n="export.turdsize">去噪面积</label>
+                      <input id="exportTurdsize" class="text-input" type="number" min="0" max="100" value="4" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="field-label" for="exportOpttolerance" data-i18n="export.opttol">曲线平滑容差</label>
+                    <input id="exportOpttolerance" class="text-input" type="number" step="0.05" min="0" max="5" value="0.2" />
+                  </div>
+                  <div class="step-divider"></div>
+                  <button class="btn primary full lg" id="btnStartExport" type="button" data-i18n="export.startBtn">开始构建并导出</button>
+                </section>
+              </aside>
             </div>
           </div>
         </section>
 
-        <!-- VIEW 7: JOBS -->
+        <!-- =========================================================
+             JOBS QUEUE
+             ========================================================= -->
         <section class="view" id="view-jobs">
-          <div class="grid-2-wide">
-            <div class="card">
-              <div class="card-head compact">
-                <h2 class="card-title" data-i18n="jobsListTitle">后台任务队列</h2>
-                <div class="btn-group">
-                  <label class="checkbox-label compact">
-                    <input type="checkbox" id="jobsOnlyCurrentProject" />
-                    <span data-i18n="onlyCurrentProject">仅当前项目</span>
-                  </label>
-                  <button class="btn btn-ghost btn-xs" id="refreshJobsBtn" type="button" data-i18n="refresh">刷新</button>
-                </div>
+          <div class="jobs-layout">
+            <section class="panel">
+              <div class="panel-header compact">
+                <h2 class="panel-title" data-i18n="jobs.listTitle">任务历史</h2>
+                <button class="btn ghost compact" id="btnRefreshJobs" type="button" data-i18n="common.refresh">刷新</button>
               </div>
-              <div id="jobsTableWrap" class="table-wrap"></div>
-            </div>
+              <div class="jobs-list" id="jobsList"></div>
+            </section>
 
-            <div class="card log-card">
-              <div class="card-head compact">
-                <h2 class="card-title" id="logPanelTitle">任务日志</h2>
-                <div class="btn-group">
-                  <button class="btn btn-secondary btn-xs hidden" id="retryJobBtn" type="button" data-i18n="retryJob">重试</button>
-                  <button class="btn btn-danger btn-xs hidden" id="cancelJobBtn" type="button" data-i18n="cancelJob">取消</button>
+            <section class="panel log-panel">
+              <div class="panel-header compact">
+                <div class="log-title-wrap">
+                  <h2 class="panel-title" id="jobLogTitle" data-i18n="jobs.logTitle">实时日志</h2>
+                  <span class="pill" id="jobLogStatusPill">-</span>
+                </div>
+                <div class="action-row compact-row">
+                  <button class="btn ghost compact" id="btnCancelJob" type="button" disabled data-i18n="jobs.cancel">取消</button>
+                  <button class="btn ghost compact" id="btnRetryJob" type="button" disabled data-i18n="jobs.retry">重试</button>
                 </div>
               </div>
-              <div class="log-meta" id="logPanelMeta">点击左侧任务查看实时执行日志</div>
-              <pre class="log-viewer" id="jobLogOutput"></pre>
-            </div>
+              <pre class="log-viewer" id="jobLogViewer">选择左侧任务查看日志输出。</pre>
+            </section>
           </div>
         </section>
       </main>
     </div>
   </div>
 
-  <!-- Lightbox Modal for Snapshot/Glyph Preview -->
-  <div class="modal-backdrop hidden" id="imageModal" role="dialog" aria-modal="true">
-    <div class="modal-box">
-      <div class="modal-head">
-        <span id="modalCaption" class="modal-caption"></span>
-        <button class="btn btn-ghost btn-xs" id="closeModalBtn" type="button">关闭</button>
-      </div>
-      <img id="modalImage" class="modal-img" alt="Preview" />
-    </div>
-  </div>
-
   <!-- Toast Container -->
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
-  <script src="/static/app.js?v=5"></script>
+  <script src="/static/app.js?v=6"></script>
 </body>
 </html>

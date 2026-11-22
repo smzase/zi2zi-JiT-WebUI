@@ -1,395 +1,486 @@
-(() => {
+(function () {
   "use strict";
-
-  const VIEW_META = {
-    zh: {
-      simple: ["快速出字向导", "4 步完成模型准备、字体上传、快速生字与 TTF 字库导出，随时可切回高级模式"],
-      projects: ["项目与备份", "创建、切换或删除字体项目，以及导入导出项目迁移包"],
-      assets: ["素材与模型", "配置基础模型、上传源字体与目标风格素材，并自动提取风格参考图"],
-      train: ["数据与训练", "从公共字集构建训练对，启动或续训单卡 LoRA 微调"],
-      monitor: ["训练监控", "多轮次对比 Loss、学习率、显存占用、评估指标与字形演化快照"],
-      generate: ["字形生成", "按文本或标准字集预设批量生成缺失字形，支持地区分流与多候选"],
-      review: ["审阅与导出", "逐字审阅候选字形，批量矢量化并合入生成可安装 TTF 字库"],
-      jobs: ["任务队列", "查看后台排队与执行状态、实时日志，支持取消与重试"],
-    },
-    en: {
-      simple: ["Quick Start Wizard", "Configure project, model, and fonts in 4 streamlined steps to generate and export TTF fonts"],
-      projects: ["Projects & Backup", "Create, switch, or delete font projects and export/import portable packages"],
-      assets: ["Assets & Base Model", "Manage base checkpoints, upload source fonts and target style assets"],
-      train: ["Dataset & Training", "Build paired glyph datasets and launch or resume LoRA fine-tuning"],
-      monitor: ["Training Monitor", "Compare loss, learning rate, resources, metrics, and glyph snapshots across runs"],
-      generate: ["Glyph Generation", "Synthesize missing glyphs from custom text or presets with regional routing"],
-      review: ["Review & Export", "Inspect candidates, pick overrides, vectorize, and package installable TTF fonts"],
-      jobs: ["Jobs & Logs", "Track queued and active tasks, inspect live logs, cancel or retry"],
-    },
-  };
 
   const I18N = {
     zh: {
-      brandSub: "Font Studio",
-      modeSimple: "简易模式",
-      modeAdvanced: "高级模式",
-      quickStartSection: "快速引导",
-      navSimpleWizard: "快速出字向导",
-      viewLogs: "查看日志",
-      simpleStep1Title: "准备项目与基础模型",
-      simpleStep1Hint: "新建一个字体项目，并挂载或一键下载官方基础模型",
-      simpleProjectBoxTitle: "字体项目",
-      simpleModelBoxTitle: "基础模型",
-      simpleAttachBtn: "挂载",
-      simpleDownloadModelBtn: "一键下载官方 JiT-B/16",
-      simpleUploadLocalToggle: "导入本地权重",
-      simpleStep2Title: "上传参考源字体与目标风格字体",
-      simpleStep2Hint: "源字体提供清晰字形结构（如思源黑体），目标字体提供你想模仿的笔触风格",
-      simpleSourceFontLabel: "参考源字体 (.ttf / .otf / .ttc)",
-      simpleTargetFontLabel: "目标风格字体 (.ttf / .otf / .ttc)",
-      simpleDropTargetFont: "点击或拖拽上传目标风格字体",
-      simpleSaveAssetsBtn: "保存字体并提取风格参考",
-      simpleStep3Title: "开始生字（或先快速微调）",
-      simpleStep3Hint: "新手可直接输入文字生成测试效果；想要更还原笔触可先运行一键微调",
-      simpleTabDirectGen: "直接生字（推荐先试）",
-      simpleTabQuickTrain: "先快速微调（效果更佳）",
-      simpleTextLabel: "输入想要生成的文字",
-      simpleFillSample: "填入示例文本",
-      simpleQuickPresetsLabel: "或快捷勾选常用字符集",
-      simpleStartGenBtn: "立即开始生成字形",
-      simpleTrainPresetLabel: "选择微调强度",
-      simpleTrainTipLabel: "说明",
-      simpleBuildDatasetBtn: "1. 构建训练数据",
-      simpleStartTrainBtn: "2. 开始快速微调",
-      simpleGoMonitorBtn: "切到高级模式看曲线",
-      simpleStep4Title: "导出可安装字库 (.ttf) 与试写",
-      simpleStep4Hint: "自动采用最新生成批次与推荐矢量化参数，一键合成可安装 TrueType 字体",
-      simpleBuildFontBtn: "一键导出 TTF 字库",
-      simplePreviewTitle: "实时试写",
-      activeProject: "当前项目",
-      newProjectShort: "+ 新建",
-      workflowSection: "工作流",
-      navProjects: "项目与备份",
-      navAssets: "素材与模型",
-      navTrain: "数据与训练",
-      navMonitor: "训练监控",
-      navGenerate: "字形生成",
-      navReview: "审阅与导出",
-      systemSection: "系统",
-      navJobs: "任务队列",
-      deviceLabel: "计算设备",
-      diskLabel: "可用磁盘",
-      openTensorboard: "打开 TensorBoard",
-      createProjectTitle: "新建项目",
-      createProjectHint: "每个项目独立管理素材、数据集、微调权重与导出字库",
-      createBtn: "创建项目",
-      projectListTitle: "项目列表",
-      refresh: "刷新",
-      currentProjectTitle: "当前项目概览",
-      confirmDeleteProjectText: "确认永久删除当前项目及其全部本地文件",
-      deleteProjectBtn: "删除项目",
-      exportPackageTitle: "导出项目迁移包",
-      exportPackageHint: "将当前项目打包为 .zi2zi-project.zip 便于备份或迁移",
-      packageMode: "打包模式",
-      includeSharedModels: "同时打包共享基础模型",
-      exportPackageBtn: "开始导出项目包",
-      exportedPackagesTitle: "已导出的迁移包",
-      importPackageTitle: "导入项目迁移包",
-      importPackageHint: "先上传并检查包内容，再确认作为新项目导入",
-      dropPackage: "点击选择或拖拽 .zi2zi-project.zip 文件",
-      inspectPackageBtn: "预检项目包",
-      confirmImportText: "已核对内容，确认导入为新项目",
-      importPackageBtn: "确认导入",
-      baseModelTitle: "基础模型管理",
-      baseModelHint: "下载官方预训练模型、挂载共享库模型，或导入本地受信任权重",
-      downloadOfficialTitle: "官方预训练下载",
-      modelVariant: "模型规格",
-      downloadModelBtn: "加入下载队列",
-      sharedModelsTitle: "本地共享模型库",
-      selectSharedModel: "选择已有模型",
-      attachModelBtn: "挂载到当前项目",
-      uploadLocalModelTitle: "导入本地 Checkpoint",
-      dropCheckpoint: "选择 .pth / .pt / .ckpt",
-      trustCheckpointText: "确认该权重来源可信 (pickle 加载确认)",
-      importModelBtn: "导入并挂载",
-      fontAssetsTitle: "源字体与目标风格素材",
-      fontAssetsHint: "上传标准字形作为源字体，上传需要学习的风格字体或已渲染字形图作为目标素材",
-      modeFont: "目标字体文件 (.ttf / .otf / .ttc)",
-      modeGlyphs: "目标字形图片 (多张 .png / .jpg)",
-      globalSourceFontsLabel: "全局源字体（必选，可多选作为回退链）",
-      dropSourceFonts: "点击或拖拽上传源字体文件",
-      regionalFontsSummary: "可选：按地区覆盖源字体（SC / TC / JP / KR）",
-      saveAssetsBtn: "保存素材并构建风格参考池",
-      savedAssetsTitle: "当前项目已保存素材",
-      datasetBuildTitle: "构建训练数据集",
-      datasetBuildHint: "从源字体与目标素材的公共字集中采样生成训练与验证对",
-      quickScale: "快速规模预设",
-      trainCountLabel: "训练字数",
-      testCountLabel: "验证字数",
-      charsetFilterLabel: "字符集范围",
-      workersLabel: "渲染并行线程",
-      checkCapacityBtn: "检测可用字数上限",
-      buildDatasetBtn: "提交数据集构建任务",
-      loraTrainingTitle: "启动 LoRA 微调训练",
-      loraTrainingHint: "基于已挂载的基础模型和数据集启动单卡微调",
-      datasetPathLabel: "数据集目录（留空自动使用最新数据集）",
-      trainDeviceLabel: "训练设备",
-      qualityProfileLabel: "训练预设档位",
-      epochsLabel: "训练轮数 (Epochs)",
-      hflipLabel: "水平翻转概率 (0.0 – 0.5)",
-      startTrainingBtn: "开始 LoRA 微调",
-      resumeRunTitle: "续训或管理已有训练轮次",
-      resumeRunBtn: "从 checkpoint-last 续训",
-      confirmDeleteRunText: "确认删除所选训练记录及权重",
-      deleteRunBtn: "删除记录",
-      monitorSelectTitle: "训练运行选择与对比（最多 5 个）",
-      refreshMetrics: "刷新指标",
-      exportMetrics: "导出 CSV / JSON / PNG",
-      snapshotsTitle: "字形演化快照（每对：目标真值 -> 当前生成）",
-      paramsTableTitle: "超参数对比",
-      checkpointsAlertsTitle: "检查点与告警记录",
-      charsetSelectionTitle: "选择要生成的字符",
-      charsetSelectionHint: "目标字体中已存在的字符会自动跳过，仅生成缺失字形",
-      customTextLabel: "自定义文本（直接输入或粘贴任意字符）",
-      presetCharsetsLabel: "标准字符集预设",
-      customCharsetFileLabel: "可选：上传自定义字符列表文件 (.txt)",
-      dropCharsetFile: "点击或拖拽上传字符表文件",
-      genParamsTitle: "推理参数",
-      genCheckpointLabel: "生成权重 (LoRA / Base)",
-      genDeviceLabel: "推理设备",
-      primaryRegionLabel: "主地区字形",
-      seedLabel: "随机种子 (Seed)",
-      candidatesLabel: "每字候选数 (1–8)",
-      splitRegionsText: "按地区拆分子任务（使用对应地区源字体渲染）",
-      unlockCandidatesText: "解锁超过 64 字时的多候选生成保护",
-      submitGenerationBtn: "提交字形生成任务",
-      subtabReview: "字形审阅与候选选优",
-      subtabExport: "矢量化与字库导出",
-      loadBatch: "载入批次",
-      prevPage: "上一页",
-      nextPage: "下一页",
-      candidateInspectorTitle: "候选对比",
-      fontBuildTitle: "导出 TrueType 字库 (.ttf)",
-      fontBuildHint: "将审阅后的字形批量矢量化，并合入目标底字生成可安装字库",
-      exportBatchLabel: "选择生成批次",
-      fontFamilyLabel: "字体家族名 (英文 / ASCII 推荐)",
-      fontStyleLabel: "字重样式",
-      fontVersionLabel: "版本号",
-      fontDesignerLabel: "作者 / 设计师",
-      fontLicenseLabel: "许可声明",
-      thresholdLabel: "二值化阈值 (0–255)",
-      despeckleLabel: "去噪面积阈值",
-      profilesLabel: "排版规格",
-      buildFontBtn: "开始构建字库",
-      artifactsPreviewTitle: "导出产物与实时试写",
-      downloadableFilesTitle: "下载文件",
-      svgPreviewTitle: "SVG 矢量化抽样",
-      jobsListTitle: "后台任务队列",
-      onlyCurrentProject: "仅当前项目",
-      retryJob: "重试",
-      cancelJob: "取消",
+      "mode.simple": "简易模式",
+      "mode.advanced": "高级模式",
+      "sidebar.project": "当前项目",
+      "sidebar.newProject": "+ 新建",
+      "sidebar.device": "设备",
+      "sidebar.disk": "磁盘",
+      "sidebar.tensorboard": "TensorBoard",
+      "stage.model": "模型",
+      "stage.assets": "素材",
+      "stage.train": "微调",
+      "stage.gen": "出字",
+      "nav.groupSimple": "快速向导",
+      "nav.groupPrepare": "准备",
+      "nav.groupTrain": "训练",
+      "nav.groupProduce": "生产",
+      "nav.groupSystem": "系统",
+      "nav.simpleWizard": "快速出字工作台",
+      "nav.projects": "项目概览",
+      "nav.assets": "素材与模型",
+      "nav.training": "数据与微调",
+      "nav.monitor": "训练监控",
+      "nav.generate": "字形生成",
+      "nav.review": "审阅与导出",
+      "nav.jobs": "任务队列",
+      "theme.dark": "深色",
+      "theme.light": "浅色",
+      "common.refresh": "刷新",
+      "simple.nav1": "项目与模型",
+      "simple.nav2": "字体素材",
+      "simple.nav3": "生字 / 微调",
+      "simple.nav4": "导出与试写",
+      "simple.step1Title": "创建字体项目并准备基础模型",
+      "simple.step1Sub": "先确定工作项目，然后一键挂载共享模型或下载官方 JiT-B/16",
+      "simple.projectBlock": "第一步：字体项目",
+      "simple.modelBlock": "第二步：基础模型",
+      "simple.createProject": "新建项目",
+      "simple.attach": "挂载选中",
+      "simple.downloadOfficial": "一键下载官方 JiT-B/16",
+      "simple.importLocal": "导入本地权重",
+      "simple.step1Foot": "项目与模型就绪后即可进入素材上传",
+      "simple.next": "下一步：上传字体",
+      "simple.prev": "上一步",
+      "simple.next3": "下一步：开始生字",
+      "simple.next4": "下一步：导出字库",
+      "simple.step2Title": "上传参考源字体与目标风格字体",
+      "simple.step2Sub": "源字体提供标准字形结构（如思源黑体），目标字体提供你想模仿的笔触风格",
+      "simple.sourceFont": "参考源字体（.ttf / .otf / .ttc）",
+      "simple.targetFont": "目标风格字体（.ttf / .otf / .ttc）",
+      "simple.dropSource": "点击或拖拽上传源字体文件",
+      "simple.dropTarget": "点击或拖拽上传目标风格字体",
+      "simple.saveAssets": "保存字体并提取风格参考",
+      "simple.step3Title": "直接生字或先做快速微调",
+      "simple.step3Sub": "新手建议先直接试生几个字看效果；追求高度还原笔触可选择先微调再生成",
+      "simple.tabGenerate": "直接生字（快速体验）",
+      "simple.tabTrain": "先微调模型（还原更佳）",
+      "simple.inputChars": "输入想要生成的文字",
+      "simple.fillSample": "填入示例文本",
+      "simple.quickCharsets": "或快捷勾选字符集（主推 GBK）",
+      "simple.clearPresets": "清空勾选",
+      "simple.startGen": "立即开始生成字形",
+      "simple.trainTier": "选择微调字数与强度档位",
+      "simple.tierFastName": "快速体验",
+      "simple.tierFastMeta": "10 轮 · 经济档 · 快速验证笔触方向",
+      "simple.tierStdName": "均衡推荐",
+      "simple.tierStdMeta": "20 轮 · 均衡档 · 日常字体还原度佳",
+      "simple.tierCovName": "完整覆盖",
+      "simple.tierCovMeta": "30 轮 · 高质量 · 面向 GBK 大字库微调",
+      "simple.buildData": "1. 构建训练数据",
+      "simple.startTrain": "2. 开始 LoRA 微调",
+      "simple.step4Title": "导出可安装字库 (.ttf) 与实时试写",
+      "simple.step4Sub": "自动采用最新生成批次与推荐矢量化参数，导出后可直接下载并在线试写效果",
+      "simple.exportBtn": "一键导出 TTF 字库",
+      "simple.openAdvanced": "进入高级模式精细调参",
+      "simple.railTitle": "当前项目快照",
+      "simple.railJobTitle": "实时任务状态",
+      "simple.viewLog": "任务日志",
+      "projects.galleryTitle": "工作区项目",
+      "projects.gallerySub": "点击卡片即可切换当前项目，或直接输入名称快速新建",
+      "projects.createBtn": "创建项目",
+      "projects.currentTitle": "当前项目概览",
+      "projects.dangerTitle": "删除当前项目",
+      "projects.dangerSub": "不可逆操作，会移除训练产出、字形与导出文件",
+      "projects.deleteBtn": "永久删除",
+      "projects.packageTitle": "可移植项目包",
+      "projects.packageSub": "跨机器迁移完整项目状态、权重与素材",
+      "projects.exportTitle": "打包当前项目",
+      "projects.incBase": "包含基础权重",
+      "projects.incDataset": "包含训练集",
+      "projects.incGen": "包含生成批次",
+      "projects.exportBtn": "导出项目包 (.zip)",
+      "projects.importTitle": "导入项目包",
+      "projects.uploadZip": "上传 .zip 项目包",
+      "projects.dropZip": "点击或拖拽项目包文件到此处",
+      "projects.orExisting": "或选择已有包",
+      "projects.importName": "导入后名称（可选）",
+      "projects.inspectBtn": "检查清单",
+      "projects.importBtn": "导入为新项目",
+      "assets.fontTitle": "参考源字体与目标风格素材",
+      "assets.fontSub": "源字体决定标准骨架结构，目标素材提供笔触与风格参考",
+      "assets.modeFont": "字体文件",
+      "assets.modeImages": "已渲染字形图",
+      "assets.sourceFonts": "默认源字体（可多选，按顺序回退）",
+      "assets.dropSource": "拖拽或选择源字体 (.ttf / .otf / .ttc)",
+      "assets.targetFont": "目标风格字体",
+      "assets.dropTarget": "拖拽或选择目标字体文件",
+      "assets.targetImages": "目标字形图片 / 压缩包",
+      "assets.dropImages": "上传多张字形图或 .zip 压缩包",
+      "assets.styleRefCount": "风格参考图抽取数量",
+      "assets.targetDir": "已渲染图目录（仅字形图模式可选）",
+      "assets.regionOverrides": "按地区指定源字体覆盖（SC / TC / JP / KR，可选）",
+      "assets.saveAssets": "保存素材并准备风格参考",
+      "assets.modelTitle": "基础模型库",
+      "assets.sharedModels": "挂载共享模型",
+      "assets.attachShared": "挂载",
+      "assets.downloadTitle": "下载官方预训练模型",
+      "assets.downloadBtn": "下载并自动挂载",
+      "assets.importTitle": "导入本地权重 (.pth / .pt)",
+      "assets.importFile": "选择本地文件",
+      "assets.importPath": "或服务器路径",
+      "assets.importBase": "设为基模",
+      "assets.importResume": "存为续训权重",
+      "train.datasetTitle": "构建训练数据集",
+      "train.datasetSub": "选择预设规模或自定义字数，构建供 LoRA 微调使用的训练与验证集",
+      "train.presetQuick": "快速 500",
+      "train.presetBalanced": "均衡 3000",
+      "train.presetCoverage": "覆盖 6000",
+      "train.charset": "基础字集",
+      "train.trainCount": "训练字数",
+      "train.testCount": "验证字数",
+      "train.imgSize": "图像尺寸",
+      "train.seed": "随机种子",
+      "train.checkCapacity": "检测字体可用字数",
+      "train.buildDataset": "构建训练数据",
+      "train.startTitle": "启动 LoRA 微调",
+      "train.startSub": "根据设备显存自动适配安全批大小，也可在下方展开细节覆写",
+      "train.device": "训练设备",
+      "train.quality": "显存与质量档位",
+      "train.epochs": "训练轮数 (Epochs)",
+      "train.datasetPath": "数据集路径（留空则使用当前项目最新数据集）",
+      "train.advancedParams": "展开高级超参数（Model / Batch / LR / LoRA Rank / Save Freq）",
+      "train.startBtn": "开始微调训练",
+      "train.runsTitle": "历史训练轮次",
+      "train.selectRun": "选择训练轮次",
+      "train.extraEpochs": "续训轮数",
+      "train.resumeCkpt": "自定义权重",
+      "train.resumeBtn": "续训所选",
+      "train.deleteRunBtn": "删除",
+      "monitor.compareRuns": "对比运行",
+      "monitor.snapshotsTitle": "验证字形演化快照",
+      "monitor.hyperTitle": "超参数对比",
+      "monitor.ckptTitle": "检查点摘要",
+      "gen.charsTitle": "目标字集与字符输入",
+      "gen.charsSub": "默认主推 GBK 字符集，可与自定义文本或文本文件自由组合去重",
+      "gen.textInput": "自定义文本（可选）",
+      "gen.primaryPresets": "常用字符集（主用 GBK）",
+      "gen.morePresets": "更多地区与扩展字符集（繁体 / 日文 / 韩文 / 欧洲拉丁）",
+      "gen.charsetFile": "或上传自定义字符文本 (.txt)",
+      "gen.paramsTitle": "推理参数",
+      "gen.checkpoint": "推理权重",
+      "gen.device": "推理设备",
+      "gen.region": "源字体地区",
+      "gen.batchSize": "批大小",
+      "gen.candidates": "每字候选数",
+      "gen.seed": "随机种子",
+      "gen.startBtn": "开始生成字形",
+      "review.tabReview": "字形审阅与挑图",
+      "review.tabExport": "字库导出与试写",
+      "review.candidatesTitle": "候选字形对比",
+      "review.pickHint": "在左侧点击任意字符查看全部候选",
+      "export.buildTitle": "字库导出设置",
+      "export.batch": "来源生成批次",
+      "export.fontName": "字体名称",
+      "export.format": "输出格式",
+      "export.backend": "矢量化引擎",
+      "export.threshold": "二值化阈值",
+      "export.turdsize": "去噪面积",
+      "export.opttol": "曲线平滑容差",
+      "export.startBtn": "开始构建并导出",
+      "export.livePreview": "实时字库试写台",
+      "export.livePreviewSub": "导出 TTF 后自动加载为浏览器字体，自由输入测试排版效果",
+      "export.downloads": "导出产物下载",
+      "export.svgSamples": "矢量 SVG 抽样",
+      "jobs.listTitle": "任务历史",
+      "jobs.logTitle": "实时日志",
+      "jobs.cancel": "取消",
+      "jobs.retry": "重试",
     },
     en: {
-      brandSub: "Font Studio",
-      modeSimple: "Simple",
-      modeAdvanced: "Advanced",
-      quickStartSection: "Quick Start",
-      navSimpleWizard: "Quick Wizard",
-      viewLogs: "View Logs",
-      simpleStep1Title: "Project & Base Model",
-      simpleStep1Hint: "Create a font project and attach or download the official base model",
-      simpleProjectBoxTitle: "Font Project",
-      simpleModelBoxTitle: "Base Model",
-      simpleAttachBtn: "Attach",
-      simpleDownloadModelBtn: "Download Official JiT-B/16",
-      simpleUploadLocalToggle: "Import Local Checkpoint",
-      simpleStep2Title: "Upload Source & Target Fonts",
-      simpleStep2Hint: "Source font provides clean glyph structure; target font provides the style to imitate",
-      simpleSourceFontLabel: "Reference Source Font (.ttf / .otf / .ttc)",
-      simpleTargetFontLabel: "Target Style Font (.ttf / .otf / .ttc)",
-      simpleDropTargetFont: "Click or drop target style font",
-      simpleSaveAssetsBtn: "Save Fonts & Extract Style Pool",
-      simpleStep3Title: "Generate Glyphs (or Quick Fine-Tune)",
-      simpleStep3Hint: "Try direct generation first, or run one-click LoRA fine-tuning for closer style fidelity",
-      simpleTabDirectGen: "Direct Generation (Recommended First)",
-      simpleTabQuickTrain: "Quick Fine-Tune (Better Fidelity)",
-      simpleTextLabel: "Text to Generate",
-      simpleFillSample: "Fill Sample Text",
-      simpleQuickPresetsLabel: "Or pick common character presets",
-      simpleStartGenBtn: "Start Generating Glyphs",
-      simpleTrainPresetLabel: "Fine-Tune Intensity",
-      simpleTrainTipLabel: "Guide",
-      simpleBuildDatasetBtn: "1. Build Dataset",
-      simpleStartTrainBtn: "2. Start Fine-Tune",
-      simpleGoMonitorBtn: "Open Monitor in Advanced Mode",
-      simpleStep4Title: "Export Installable Font (.ttf) & Test",
-      simpleStep4Hint: "Uses the latest generated batch with recommended vectorization settings",
-      simpleBuildFontBtn: "Export TTF Font",
-      simplePreviewTitle: "Live Specimen",
-      activeProject: "Active Project",
-      newProjectShort: "+ New",
-      workflowSection: "Workflow",
-      navProjects: "Projects & Backup",
-      navAssets: "Assets & Model",
-      navTrain: "Dataset & Train",
-      navMonitor: "Monitor",
-      navGenerate: "Generation",
-      navReview: "Review & Export",
-      systemSection: "System",
-      navJobs: "Job Queue",
-      deviceLabel: "Device",
-      diskLabel: "Disk Free",
-      openTensorboard: "Open TensorBoard",
-      createProjectTitle: "Create Project",
-      createProjectHint: "Each project isolates assets, datasets, checkpoints, and font builds",
-      createBtn: "Create Project",
-      projectListTitle: "Projects",
-      refresh: "Refresh",
-      currentProjectTitle: "Project Overview",
-      confirmDeleteProjectText: "Confirm permanent deletion of this project and all local files",
-      deleteProjectBtn: "Delete Project",
-      exportPackageTitle: "Export Project Package",
-      exportPackageHint: "Bundle current project as .zi2zi-project.zip for backup or migration",
-      packageMode: "Mode",
-      includeSharedModels: "Include shared base models",
-      exportPackageBtn: "Export Package",
-      exportedPackagesTitle: "Exported Packages",
-      importPackageTitle: "Import Project Package",
-      importPackageHint: "Inspect archive contents before importing as a new project",
-      dropPackage: "Click or drop .zi2zi-project.zip here",
-      inspectPackageBtn: "Inspect Package",
-      confirmImportText: "Verified package contents, confirm import as new project",
-      importPackageBtn: "Confirm Import",
-      baseModelTitle: "Base Model",
-      baseModelHint: "Download official checkpoints, attach shared library models, or import local weights",
-      downloadOfficialTitle: "Official Pretrained",
-      modelVariant: "Model Variant",
-      downloadModelBtn: "Queue Download",
-      sharedModelsTitle: "Shared Model Library",
-      selectSharedModel: "Select Model",
-      attachModelBtn: "Attach to Project",
-      uploadLocalModelTitle: "Import Local Checkpoint",
-      dropCheckpoint: "Select .pth / .pt / .ckpt",
-      trustCheckpointText: "I trust this checkpoint source (pickle load consent)",
-      importModelBtn: "Import & Attach",
-      fontAssetsTitle: "Source Fonts & Target Style Assets",
-      fontAssetsHint: "Upload clean source fonts and the target style font or rendered glyph images",
-      modeFont: "Target Font File (.ttf / .otf / .ttc)",
-      modeGlyphs: "Target Glyph Images (.png / .jpg)",
-      globalSourceFontsLabel: "Global Source Fonts (fallback chain)",
-      dropSourceFonts: "Click or drop source font files",
-      regionalFontsSummary: "Optional: Regional Source Font Overrides (SC / TC / JP / KR)",
-      saveAssetsBtn: "Save Assets & Build Style Pool",
-      savedAssetsTitle: "Saved Project Assets",
-      datasetBuildTitle: "Build Training Dataset",
-      datasetBuildHint: "Sample paired source and target glyphs from common codepoints",
-      quickScale: "Quick Size Preset",
-      trainCountLabel: "Training Glyphs",
-      testCountLabel: "Validation Glyphs",
-      charsetFilterLabel: "Charset Scope",
-      workersLabel: "Parallel Workers",
-      checkCapacityBtn: "Check Capacity",
-      buildDatasetBtn: "Queue Dataset Build",
-      loraTrainingTitle: "Start LoRA Training",
-      loraTrainingHint: "Fine-tune the attached base model on the prepared dataset",
-      datasetPathLabel: "Dataset Directory (blank uses latest)",
-      trainDeviceLabel: "Training Device",
-      qualityProfileLabel: "Quality Profile",
-      epochsLabel: "Epochs",
-      hflipLabel: "Horizontal Flip Prob (0.0 – 0.5)",
-      startTrainingBtn: "Start Training",
-      resumeRunTitle: "Resume or Manage Runs",
-      resumeRunBtn: "Resume from checkpoint-last",
-      confirmDeleteRunText: "Confirm permanent deletion of selected run",
-      deleteRunBtn: "Delete Run",
-      monitorSelectTitle: "Compare Training Runs (up to 5)",
-      refreshMetrics: "Refresh Metrics",
-      exportMetrics: "Export CSV / JSON / PNG",
-      snapshotsTitle: "Glyph Evolution Snapshots (target -> generated)",
-      paramsTableTitle: "Hyperparameter Comparison",
-      checkpointsAlertsTitle: "Checkpoints & Alerts",
-      charsetSelectionTitle: "Select Target Characters",
-      charsetSelectionHint: "Characters already in the target font are automatically skipped",
-      customTextLabel: "Custom Text",
-      presetCharsetsLabel: "Standard Charset Presets",
-      customCharsetFileLabel: "Optional: Upload Custom Charset File (.txt)",
-      dropCharsetFile: "Click or drop charset file",
-      genParamsTitle: "Inference Settings",
-      genCheckpointLabel: "Checkpoint (LoRA / Base)",
-      genDeviceLabel: "Device",
-      primaryRegionLabel: "Primary Region",
-      seedLabel: "Seed",
-      candidatesLabel: "Candidates per Glyph (1–8)",
-      splitRegionsText: "Split jobs by region (use regional source fonts)",
-      unlockCandidatesText: "Unlock multi-candidate generation above 64 glyphs",
-      submitGenerationBtn: "Queue Glyph Generation",
-      subtabReview: "Review & Pick Candidates",
-      subtabExport: "Vectorize & Export Font",
-      loadBatch: "Load Batch",
-      prevPage: "Prev",
-      nextPage: "Next",
-      candidateInspectorTitle: "Candidates",
-      fontBuildTitle: "Export TrueType Font (.ttf)",
-      fontBuildHint: "Vectorize selected glyphs and merge into an installable TTF font",
-      exportBatchLabel: "Generation Batch",
-      fontFamilyLabel: "Font Family Name",
-      fontStyleLabel: "Style Name",
-      fontVersionLabel: "Version",
-      fontDesignerLabel: "Designer",
-      fontLicenseLabel: "License",
-      thresholdLabel: "Threshold (0–255)",
-      despeckleLabel: "Despeckle Area",
-      profilesLabel: "Build Profiles",
-      buildFontBtn: "Build Font",
-      artifactsPreviewTitle: "Artifacts & Live Specimen",
-      downloadableFilesTitle: "Downloadable Files",
-      svgPreviewTitle: "Vectorized SVG Samples",
-      jobsListTitle: "Background Jobs",
-      onlyCurrentProject: "Current Project Only",
-      retryJob: "Retry",
-      cancelJob: "Cancel",
+      "mode.simple": "Simple",
+      "mode.advanced": "Advanced",
+      "sidebar.project": "Project",
+      "sidebar.newProject": "+ New",
+      "sidebar.device": "Device",
+      "sidebar.disk": "Disk",
+      "sidebar.tensorboard": "TensorBoard",
+      "stage.model": "Model",
+      "stage.assets": "Fonts",
+      "stage.train": "Train",
+      "stage.gen": "Glyphs",
+      "nav.groupSimple": "Quick Start",
+      "nav.groupPrepare": "Prepare",
+      "nav.groupTrain": "Train",
+      "nav.groupProduce": "Produce",
+      "nav.groupSystem": "System",
+      "nav.simpleWizard": "Quick Font Workbench",
+      "nav.projects": "Projects",
+      "nav.assets": "Assets & Models",
+      "nav.training": "Dataset & LoRA",
+      "nav.monitor": "Monitor",
+      "nav.generate": "Generate",
+      "nav.review": "Review & Export",
+      "nav.jobs": "Job Queue",
+      "theme.dark": "Dark",
+      "theme.light": "Light",
+      "common.refresh": "Refresh",
+      "simple.nav1": "Project & Model",
+      "simple.nav2": "Font Assets",
+      "simple.nav3": "Generate / Tune",
+      "simple.nav4": "Export & Test",
+      "simple.step1Title": "Create a Project and Base Model",
+      "simple.step1Sub": "Pick or create a project, then attach a shared checkpoint or download official JiT-B/16",
+      "simple.projectBlock": "Part 1: Font Project",
+      "simple.modelBlock": "Part 2: Base Model",
+      "simple.createProject": "Create Project",
+      "simple.attach": "Attach",
+      "simple.downloadOfficial": "Download Official JiT-B/16",
+      "simple.importLocal": "Import Local Weight",
+      "simple.step1Foot": "Continue once project and base model are ready",
+      "simple.next": "Next: Upload Fonts",
+      "simple.prev": "Back",
+      "simple.next3": "Next: Generate",
+      "simple.next4": "Next: Export Font",
+      "simple.step2Title": "Upload Reference Source and Target Style Fonts",
+      "simple.step2Sub": "Source font defines glyph structure; target font provides stroke style",
+      "simple.sourceFont": "Source Reference Font (.ttf / .otf / .ttc)",
+      "simple.targetFont": "Target Style Font (.ttf / .otf / .ttc)",
+      "simple.dropSource": "Click or drag source font file",
+      "simple.dropTarget": "Click or drag target style font file",
+      "simple.saveAssets": "Save Fonts & Extract Style Refs",
+      "simple.step3Title": "Generate Directly or Fine-Tune First",
+      "simple.step3Sub": "Try direct generation first, or run LoRA fine-tuning for higher stroke fidelity",
+      "simple.tabGenerate": "Direct Generate",
+      "simple.tabTrain": "Fine-Tune First",
+      "simple.inputChars": "Characters to generate",
+      "simple.fillSample": "Fill sample",
+      "simple.quickCharsets": "Or pick presets (GBK recommended)",
+      "simple.clearPresets": "Clear",
+      "simple.startGen": "Start Generating Glyphs",
+      "simple.trainTier": "Fine-Tuning Coverage & Strength",
+      "simple.tierFastName": "Quick Test",
+      "simple.tierFastMeta": "10 epochs · Economy · Fast style check",
+      "simple.tierStdName": "Balanced",
+      "simple.tierStdMeta": "20 epochs · Balanced · Recommended fidelity",
+      "simple.tierCovName": "Full Coverage",
+      "simple.tierCovMeta": "30 epochs · Quality · Built for GBK fonts",
+      "simple.buildData": "1. Build Dataset",
+      "simple.startTrain": "2. Start LoRA Fine-Tune",
+      "simple.step4Title": "Export Installable Font (.ttf) & Live Specimen",
+      "simple.step4Sub": "Automatically uses your latest batch and recommended vectorization settings",
+      "simple.exportBtn": "Export TTF Font",
+      "simple.openAdvanced": "Open Advanced Mode",
+      "simple.railTitle": "Project Snapshot",
+      "simple.railJobTitle": "Live Job Status",
+      "simple.viewLog": "Job Logs",
+      "projects.galleryTitle": "Workspace Projects",
+      "projects.gallerySub": "Click a card to switch active project or create a new one",
+      "projects.createBtn": "Create",
+      "projects.currentTitle": "Active Project Summary",
+      "projects.dangerTitle": "Delete Project",
+      "projects.dangerSub": "Irreversible. Removes runs, glyphs, and exports.",
+      "projects.deleteBtn": "Delete Permanently",
+      "projects.packageTitle": "Portable Project Packages",
+      "projects.packageSub": "Export or import full project snapshots across machines",
+      "projects.exportTitle": "Export Active Project",
+      "projects.incBase": "Include base model",
+      "projects.incDataset": "Include dataset",
+      "projects.incGen": "Include generations",
+      "projects.exportBtn": "Export Package (.zip)",
+      "projects.importTitle": "Import Project Package",
+      "projects.uploadZip": "Upload .zip package",
+      "projects.dropZip": "Click or drag package file here",
+      "projects.orExisting": "Or choose existing package",
+      "projects.importName": "New project name (optional)",
+      "projects.inspectBtn": "Inspect",
+      "projects.importBtn": "Import Project",
+      "assets.fontTitle": "Reference Source & Target Style Assets",
+      "assets.fontSub": "Source fonts define glyph structure; target assets supply stroke style",
+      "assets.modeFont": "Font File",
+      "assets.modeImages": "Glyph Images",
+      "assets.sourceFonts": "Default Source Fonts (ordered fallback)",
+      "assets.dropSource": "Drag or select source fonts (.ttf / .otf / .ttc)",
+      "assets.targetFont": "Target Style Font",
+      "assets.dropTarget": "Drag or select target font",
+      "assets.targetImages": "Target Glyph Images / Zip",
+      "assets.dropImages": "Upload glyph images or a .zip archive",
+      "assets.styleRefCount": "Style reference sample count",
+      "assets.targetDir": "Local glyph image directory (optional)",
+      "assets.regionOverrides": "Regional source font overrides (SC / TC / JP / KR)",
+      "assets.saveAssets": "Save Assets & Prepare Style Refs",
+      "assets.modelTitle": "Base Model Library",
+      "assets.sharedModels": "Attach Shared Model",
+      "assets.attachShared": "Attach",
+      "assets.downloadTitle": "Download Official Pretrained Model",
+      "assets.downloadBtn": "Download & Attach",
+      "assets.importTitle": "Import Local Weight (.pth / .pt)",
+      "assets.importFile": "Select local file",
+      "assets.importPath": "Or server path",
+      "assets.importBase": "Set as Base",
+      "assets.importResume": "Save for Resume",
+      "train.datasetTitle": "Build Training Dataset",
+      "train.datasetSub": "Choose a preset scale or custom character counts for LoRA training",
+      "train.presetQuick": "Quick 500",
+      "train.presetBalanced": "Balanced 3000",
+      "train.presetCoverage": "Coverage 6000",
+      "train.charset": "Base Charset",
+      "train.trainCount": "Train Chars",
+      "train.testCount": "Eval Chars",
+      "train.imgSize": "Image Size",
+      "train.seed": "Seed",
+      "train.checkCapacity": "Check Font Capacity",
+      "train.buildDataset": "Build Dataset",
+      "train.startTitle": "Start LoRA Fine-Tuning",
+      "train.startSub": "Safe batch sizes adapt automatically to GPU VRAM",
+      "train.device": "Device",
+      "train.quality": "VRAM / Quality Profile",
+      "train.epochs": "Epochs",
+      "train.datasetPath": "Dataset path (blank uses latest project dataset)",
+      "train.advancedParams": "Advanced hyperparameters (Model / Batch / LR / LoRA Rank / Save Freq)",
+      "train.startBtn": "Start Training",
+      "train.runsTitle": "Training Runs",
+      "train.selectRun": "Select run",
+      "train.extraEpochs": "Extra epochs",
+      "train.resumeCkpt": "Custom checkpoint",
+      "train.resumeBtn": "Resume Run",
+      "train.deleteRunBtn": "Delete",
+      "monitor.compareRuns": "Compare Runs",
+      "monitor.snapshotsTitle": "Validation Glyph Snapshots",
+      "monitor.hyperTitle": "Hyperparameters",
+      "monitor.ckptTitle": "Checkpoints",
+      "gen.charsTitle": "Target Charset & Input",
+      "gen.charsSub": "GBK is primary by default; combine with custom text or files seamlessly",
+      "gen.textInput": "Custom text (optional)",
+      "gen.primaryPresets": "Core Presets (GBK Primary)",
+      "gen.morePresets": "More Regional & Extended Presets (TC / JP / KR / European)",
+      "gen.charsetFile": "Or upload custom charset file (.txt)",
+      "gen.paramsTitle": "Inference Settings",
+      "gen.checkpoint": "Checkpoint",
+      "gen.device": "Device",
+      "gen.region": "Source Region",
+      "gen.batchSize": "Batch Size",
+      "gen.candidates": "Candidates / Char",
+      "gen.seed": "Seed",
+      "gen.startBtn": "Start Generation",
+      "review.tabReview": "Glyph Review",
+      "review.tabExport": "Export & Specimen",
+      "review.candidatesTitle": "Candidate Comparison",
+      "review.pickHint": "Select a glyph on the left to inspect candidates",
+      "export.buildTitle": "Export Settings",
+      "export.batch": "Generation Batch",
+      "export.fontName": "Font Name",
+      "export.format": "Format",
+      "export.backend": "Vectorizer",
+      "export.threshold": "Threshold",
+      "export.turdsize": "Denoise Area",
+      "export.opttol": "Smooth Tolerance",
+      "export.startBtn": "Build & Export",
+      "export.livePreview": "Live Font Specimen",
+      "export.livePreviewSub": "Exported TTF loads automatically into the browser for live typing",
+      "export.downloads": "Downloads",
+      "export.svgSamples": "Vector SVG Samples",
+      "jobs.listTitle": "Job History",
+      "jobs.logTitle": "Live Logs",
+      "jobs.cancel": "Cancel",
+      "jobs.retry": "Retry",
     },
   };
 
-  const CHART_COLORS = [
-    "#2563eb",
-    "#16a34a",
-    "#d97706",
-    "#dc2626",
-    "#7c3aed",
-    "#0891b2",
-    "#db2777",
-    "#4b5563",
+  const VIEW_META = {
+    simple: {
+      zh: ["快速出字工作台", "按 4 个聚焦步骤完成模型、字体、生字与字库导出，右侧实时同步项目状态"],
+      en: ["Quick Font Workbench", "Complete model, font upload, generation, and TTF export in 4 focused steps"],
+    },
+    projects: {
+      zh: ["项目概览", "切换或新建字体项目，管理可移植项目包与清理"],
+      en: ["Projects", "Switch or create font projects and manage portable packages"],
+    },
+    assets: {
+      zh: ["素材与模型", "配置参考源字体、目标风格素材与基础预训练权重"],
+      en: ["Assets & Models", "Configure source fonts, target style assets, and pretrained models"],
+    },
+    training: {
+      zh: ["数据与微调", "构建配对训练数据集并启动或续训 LoRA 模型"],
+      en: ["Dataset & LoRA", "Build paired datasets and launch or resume LoRA fine-tuning"],
+    },
+    monitor: {
+      zh: ["训练监控", "实时观察 Loss、SSIM/LPIPS、显存与验证字形演化"],
+      en: ["Training Monitor", "Track Loss, SSIM/LPIPS, GPU memory, and glyph evolution"],
+    },
+    generate: {
+      zh: ["字形生成", "主推 GBK 字集或任意自定义文本批量推理目标风格字形"],
+      en: ["Glyph Generation", "Batch-generate glyphs using GBK primary charset or custom text"],
+    },
+    review: {
+      zh: ["审阅与导出", "筛选最佳候选字形、矢量化封装 TTF 并在线试写"],
+      en: ["Review & Export", "Pick best candidates, vectorize into TTF, and live-test"],
+    },
+    jobs: {
+      zh: ["任务队列", "追踪后台任务状态、查看实时日志并支持取消或重试"],
+      en: ["Job Queue", "Track background job status, stream logs, cancel or retry"],
+    },
+  };
+
+  const SIMPLE_PRESET_IDS = [
+    "zh-Hans-GBK",
+    "zh-Hans-3500",
+    "zh-Hans-6500",
+    "latin-ascii",
+    "cjk-punctuation",
   ];
+
+  const PRIMARY_PRESET_IDS = [
+    "zh-Hans-GBK",
+    "zh-Hans-3500",
+    "zh-Hans-6500",
+    "zh-Hans-8105",
+    "latin-ascii",
+    "cjk-punctuation",
+    "symbols-common",
+  ];
+
+  const SIMPLE_TIERS = {
+    fast: { size_preset: "quick", train_count: 500, test_count: 8, epochs: 10, quality: "economy" },
+    standard: { size_preset: "balanced", train_count: 3000, test_count: 64, epochs: 20, quality: "balanced" },
+    coverage: { size_preset: "coverage", train_count: 6000, test_count: 128, epochs: 30, quality: "quality" },
+  };
+
+  const CHART_COLORS = ["#2563eb", "#16a34a", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
 
   const state = {
     lang: localStorage.getItem("zi2zi_lang") || "zh",
-    uiMode: localStorage.getItem("zi2zi_ui_mode") || "simple",
-    theme:
-      localStorage.getItem("zi2zi_theme") ||
-      (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light"),
-    view: (localStorage.getItem("zi2zi_ui_mode") || "simple") === "simple" ? "simple" : "projects",
+    theme: localStorage.getItem("zi2zi_theme") || "light",
+    uiMode: localStorage.getItem("zi2zi_ui_mode") || "advanced",
+    view: "projects",
+    simpleStep: 1,
+    simpleTab: "generate",
+    simpleTrainTier: "standard",
+    reviewSubtab: "review",
+    inputMode: "font",
+    projects: [],
+    activeProjectId: localStorage.getItem("zi2zi_project_id") || "",
+    activeProject: null,
     devices: [],
     presets: [],
-    projects: [],
     sharedModels: [],
-    exportPackages: [],
+    packages: [],
     jobs: [],
-    activeProjectId: localStorage.getItem("zi2zi_project") || "",
-    projectDetail: null,
-    inputMode: "font",
-    stagedImportPath: "",
+    selectedJobId: "",
     selectedRunIds: [],
     reviewPage: 1,
     reviewTotalPages: 1,
-    activeReviewCodepoint: "",
-    selectedJobId: "",
-    previewFontCounter: 0,
-    pollTimer: null,
+    selectedReviewChar: "",
+    loadedSpecimenFont: "",
+    activeJobsHadRunning: false,
+    tensorboardUrl: "http://127.0.0.1:6006",
   };
 
   const $ = (id) => document.getElementById(id);
 
+  function t(key) {
+    return (I18N[state.lang] && I18N[state.lang][key]) || I18N.zh[key] || key;
+  }
+
+  function isZh() {
+    return state.lang === "zh";
+  }
+
   function escapeHtml(value) {
-    return String(value ?? "")
+    return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -399,1299 +490,1553 @@
 
   function basename(path) {
     if (!path) return "";
-    return String(path).split(/[\\/]/).pop() || path;
+    return String(path).split(/[\\/]/).pop() || String(path);
   }
 
-  function toast(message, kind = "info") {
-    const stack = $("toastStack");
-    const node = document.createElement("div");
-    node.className = `toast ${kind}`;
-    node.textContent = message;
-    stack.appendChild(node);
-    setTimeout(() => {
-      node.remove();
-    }, 4200);
-  }
-
-  async function api(url, options = {}) {
-    const config = { ...options };
-    if (config.body && !(config.body instanceof FormData) && typeof config.body === "object") {
-      config.headers = { "Content-Type": "application/json", ...(config.headers || {}) };
-      config.body = JSON.stringify(config.body);
-    }
-    const resp = await fetch(url, config);
-    let data = null;
+  function formatTime(iso) {
+    if (!iso) return "-";
     try {
-      data = await resp.json();
-    } catch {
-      data = null;
-    }
-    if (!resp.ok) {
-      const detail = (data && (data.detail || data.message)) || `HTTP ${resp.status}`;
-      throw new Error(detail);
-    }
-    return data;
-  }
-
-  function applyTheme() {
-    document.documentElement.setAttribute("data-theme", state.theme);
-    localStorage.setItem("zi2zi_theme", state.theme);
-    $("themeToggleBtn").textContent =
-      state.lang === "en"
-        ? state.theme === "dark"
-          ? "Light"
-          : "Dark"
-        : state.theme === "dark"
-        ? "浅色"
-        : "深色";
-  }
-
-  function applyLanguage() {
-    localStorage.setItem("zi2zi_lang", state.lang);
-    document.documentElement.lang = state.lang === "en" ? "en" : "zh-CN";
-    const dict = I18N[state.lang] || I18N.zh;
-    document.querySelectorAll("[data-i18n]").forEach((el) => {
-      const key = el.getAttribute("data-i18n");
-      if (dict[key]) el.textContent = dict[key];
-    });
-    $("langToggleBtn").textContent = state.lang === "en" ? "中文" : "EN";
-    applyTheme();
-    updateViewHeader();
-    updateInputModeLabels();
-  }
-
-  function updateViewHeader() {
-    const meta = (VIEW_META[state.lang] || VIEW_META.zh)[state.view] || ["", ""];
-    $("viewTitle").textContent = meta[0];
-    $("viewSubtitle").textContent = meta[1];
-  }
-
-  function switchView(viewName) {
-    state.view = viewName;
-    document.querySelectorAll(".view").forEach((el) => {
-      el.classList.toggle("active", el.id === `view-${viewName}`);
-    });
-    document.querySelectorAll(".nav-item").forEach((el) => {
-      el.classList.toggle("active", el.getAttribute("data-view") === viewName);
-    });
-    $("sidebar").classList.remove("open");
-    updateViewHeader();
-
-    if (viewName === "simple") {
-      renderSimpleWizard();
-      refreshArtifacts();
-    } else if (viewName === "monitor") {
-      refreshDashboard();
-    } else if (viewName === "review") {
-      loadReviewPage(1);
-      refreshArtifacts();
-    } else if (viewName === "jobs") {
-      refreshJobs();
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    } catch (_) {
+      return String(iso);
     }
   }
 
-  function applyUiMode(mode, navigate = true) {
-    state.uiMode = mode === "advanced" ? "advanced" : "simple";
-    localStorage.setItem("zi2zi_ui_mode", state.uiMode);
-    document.querySelectorAll("#uiModeSwitcher .mode-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.uiMode === state.uiMode);
-    });
-    const isSimple = state.uiMode === "simple";
-    $("simpleNavGroup").classList.toggle("hidden", !isSimple);
-    $("advancedNavGroup").classList.toggle("hidden", isSimple);
-    if (navigate) {
-      if (isSimple && state.view !== "jobs") {
-        switchView("simple");
-      } else if (!isSimple && state.view === "simple") {
-        switchView("projects");
-      }
-    }
-  }
-
-  function getDefaultDevice(forTraining = false) {
-    const candidates = forTraining
-      ? state.devices.filter((d) => d.training_supported)
-      : state.devices;
-    const list = candidates.length ? candidates : state.devices;
-    const gpu = list.find((d) => d.backend === "cuda");
-    return (gpu || list[0] || { id: "cpu" }).id;
-  }
-
-  function renderSimpleWizard() {
-    const detail = state.projectDetail;
-    const s1 = $("simpleStep1Status");
-    const s2 = $("simpleStep2Status");
-    const s3 = $("simpleStep3Status");
-    const s4 = $("simpleStep4Status");
-
-    if (!detail) {
-      s1.textContent = state.lang === "en" ? "Pending" : "待配置";
-      s1.className = "pill";
-      s2.textContent = state.lang === "en" ? "Pending" : "待上传";
-      s2.className = "pill";
-      s3.textContent = state.lang === "en" ? "Waiting" : "等待前序步骤";
-      s3.className = "pill";
-      s4.textContent = state.lang === "en" ? "Pending" : "待生成";
-      s4.className = "pill";
-      $("simpleProjectStatus").textContent =
-        state.lang === "en"
-          ? "No project selected. Create one above."
-          : "尚未创建项目，请在上方输入名称并创建。";
-      $("simpleModelStatus").textContent =
-        state.lang === "en" ? "Create a project first." : "创建项目后即可挂载或下载基础模型。";
-      $("simpleAssetsStatus").textContent = "";
-      $("simpleGenHint").textContent =
-        state.lang === "en"
-          ? "Complete steps 1 and 2 before generating."
-          : "请先完成第 1、2 步后再开始生字。";
-      return;
-    }
-
-    const m = detail.manifest;
-    const hasModel = Boolean(m.base_model);
-    const hasSource = (m.global_source_fonts || []).length > 0;
-    const hasTarget = (m.target_assets || []).length > 0;
-    const hasRefs = (m.style_reference_pool || []).length >= 8;
-    const hasAssets = hasSource && hasTarget && hasRefs;
-    const hasBatches = (detail.generation_batches || []).length > 0;
-
-    s1.textContent = hasModel
-      ? state.lang === "en"
-        ? "Ready"
-        : "已就绪"
-      : state.lang === "en"
-      ? "Need Model"
-      : "缺基础模型";
-    s1.className = `pill ${hasModel ? "ok" : "warn"}`;
-
-    s2.textContent = hasAssets
-      ? state.lang === "en"
-        ? "Ready"
-        : "已就绪"
-      : state.lang === "en"
-      ? "Pending"
-      : "待上传";
-    s2.className = `pill ${hasAssets ? "ok" : ""}`;
-
-    s3.textContent =
-      hasModel && hasAssets
-        ? hasBatches
-          ? state.lang === "en"
-            ? `${detail.generation_batches.length} Batch(es)`
-            : `已生成 ${detail.generation_batches.length} 批`
-          : state.lang === "en"
-          ? "Ready to Run"
-          : "可开始生字"
-        : state.lang === "en"
-        ? "Waiting"
-        : "等待前序步骤";
-    s3.className = `pill ${hasBatches ? "ok" : hasModel && hasAssets ? "accent" : ""}`;
-
-    s4.textContent = hasBatches
-      ? state.lang === "en"
-        ? "Ready to Export"
-        : "可一键导出"
-      : state.lang === "en"
-      ? "Generate First"
-      : "等待生成批次";
-    s4.className = `pill ${hasBatches ? "accent" : ""}`;
-
-    $("simpleProjectStatus").textContent =
-      state.lang === "en"
-        ? `Active: ${m.name} (${m.id.slice(0, 8)})`
-        : `当前项目：${m.name}（可在左上角切换其他项目）`;
-    $("simpleModelStatus").textContent = hasModel
-      ? (state.lang === "en" ? "Attached: " : "已挂载：") + basename(m.base_model)
-      : state.lang === "en"
-      ? "No model attached yet. Select a shared model or download JiT-B/16."
-      : "尚未挂载模型：可直接从上方选择，或点「一键下载官方 JiT-B/16」。";
-    $("simpleAssetsStatus").textContent = hasAssets
-      ? state.lang === "en"
-        ? `Source: ${(m.global_source_fonts || []).map(basename).join(", ")} | Target: ${(
-            m.target_assets || []
-          )
-            .map(basename)
-            .join(", ")} | Style refs: ${(m.style_reference_pool || []).length}`
-        : `已保存 · 源字体：${(m.global_source_fonts || []).map(basename).join(", ")} | 目标字体：${(
-            m.target_assets || []
-          )
-            .map(basename)
-            .join(", ")} | 风格参考图：${(m.style_reference_pool || []).length} 张`
-      : state.lang === "en"
-      ? "Upload both source and target fonts, then click Save."
-      : "请同时选择源字体和目标风格字体后点击保存。";
-
-    const ckpt = detail.preferred_checkpoint || m.base_model || "";
-    const dev = getDefaultDevice(false);
-    $("simpleGenHint").textContent = ckpt
-      ? state.lang === "en"
-        ? `Auto weight: ${basename(ckpt)} · Device: ${dev}`
-        : `将自动使用权重：${basename(ckpt)} · 设备：${dev}`
-      : state.lang === "en"
-      ? "Attach a base model in Step 1 first."
-      : "请先在第 1 步挂载基础模型。";
-
-    const trainStatus = $("simpleTrainStatus");
-    if (detail.dataset_path) {
-      trainStatus.textContent =
-        state.lang === "en"
-          ? `Dataset ready (${basename(detail.dataset_path)}). Click "2. Start Fine-Tune" to train LoRA.`
-          : `数据集已就绪（${basename(detail.dataset_path)}），可直接点击「2. 开始快速微调」。`;
-    } else {
-      trainStatus.textContent =
-        state.lang === "en"
-          ? 'Click "1. Build Dataset" first, then "2. Start Fine-Tune" after it completes.'
-          : "先点击「1. 构建训练数据」，待任务完成后再点击「2. 开始快速微调」。";
-    }
-  }
-
-  function updateInputModeLabels() {
-    const isGlyphs = state.inputMode === "glyphs";
-    $("targetAssetsLabel").textContent =
-      state.lang === "en"
-        ? isGlyphs
-          ? "Target Rendered Glyph Images (8+ PNG/JPG)"
-          : "Target Style Font File (.ttf / .otf / .ttc)"
-        : isGlyphs
-        ? "目标风格字形图片（至少 8 张 .png / .jpg）"
-        : "目标风格字体文件（.ttf / .otf / .ttc）";
-    $("targetDropText").textContent =
-      state.lang === "en"
-        ? isGlyphs
-          ? "Click or drop rendered glyph images"
-          : "Click or drop target style font"
-        : isGlyphs
-        ? "点击或拖拽上传多张目标字形图片"
-        : "点击或拖拽上传目标风格字体";
-  }
-
-  function requireProject() {
-    if (!state.activeProjectId) {
-      toast(
-        state.lang === "en" ? "Create or select a project first." : "请先创建或选择一个项目。",
-        "error"
-      );
-      return false;
-    }
-    return true;
-  }
-
-  async function bootstrap() {
-    const data = await api(`/api/bootstrap?lang=${encodeURIComponent(state.lang)}`);
-    state.devices = data.devices || [];
-    state.presets = data.presets || [];
-    state.projects = data.projects || [];
-    state.sharedModels = data.shared_models || [];
-    state.exportPackages = data.export_packages || [];
-    state.jobs = data.jobs || [];
-
-    $("tensorboardLink").href = data.tensorboard_url || "http://127.0.0.1:6006";
-    $("sidebarDisk").textContent = `${data.disk_free_gb ?? 0} GB`;
-    const firstGpu = state.devices.find((d) => d.backend === "cuda") || state.devices[0];
-    $("sidebarDevice").textContent = firstGpu ? firstGpu.name : "CPU";
-
-    populateDeviceSelects();
-    renderSharedModels();
-    renderExportPackages();
-    renderPresets();
-    renderProjectsList();
-    renderJobsState();
-    renderSimpleWizard();
-
-    if (
-      state.activeProjectId &&
-      state.projects.some((p) => p.id === state.activeProjectId)
-    ) {
-      await selectProject(state.activeProjectId, false);
-    } else if (state.projects.length > 0) {
-      await selectProject(state.projects[0].id, false);
-    } else {
-      state.activeProjectId = "";
-      state.projectDetail = null;
-      renderProjectDetail();
-    }
-  }
-
-  function populateDeviceSelects() {
-    const trainSelect = $("trainDevice");
-    const genSelect = $("genDeviceSelect");
-    const prevTrain = trainSelect.value;
-    const prevGen = genSelect.value;
-    trainSelect.innerHTML = "";
-    genSelect.innerHTML = "";
-    const trainDevices = state.devices.filter((d) => d.training_supported);
-    const listTrain = trainDevices.length ? trainDevices : state.devices;
-    listTrain.forEach((dev) => {
-      const opt = document.createElement("option");
-      opt.value = dev.id;
-      opt.textContent = dev.memory_total_gb
-        ? `${dev.name} (${dev.memory_total_gb} GB)`
-        : dev.name;
-      trainSelect.appendChild(opt);
-    });
-    state.devices.forEach((dev) => {
-      const opt = document.createElement("option");
-      opt.value = dev.id;
-      opt.textContent = dev.memory_total_gb
-        ? `${dev.name} (${dev.memory_total_gb} GB)`
-        : dev.name;
-      genSelect.appendChild(opt);
-    });
-    if (prevTrain && [...trainSelect.options].some((o) => o.value === prevTrain)) {
-      trainSelect.value = prevTrain;
-    }
-    if (prevGen && [...genSelect.options].some((o) => o.value === prevGen)) {
-      genSelect.value = prevGen;
-    }
-  }
-
-  function renderProjectsList() {
-    const switcher = $("globalProjectSelect");
-    const list = $("projectList");
-    switcher.innerHTML = "";
-    list.innerHTML = "";
-
-    if (!state.projects.length) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = state.lang === "en" ? "No projects yet" : "暂无项目";
-      switcher.appendChild(opt);
-      list.innerHTML = `<div class="empty-state">${
-        state.lang === "en" ? "Create a project to begin." : "创建一个项目以开始使用。"
-      }</div>`;
-      return;
-    }
-
-    state.projects.forEach((proj) => {
-      const opt = document.createElement("option");
-      opt.value = proj.id;
-      opt.textContent = `${proj.name} (${proj.id.slice(0, 8)})`;
-      if (proj.id === state.activeProjectId) opt.selected = true;
-      switcher.appendChild(opt);
-
-      const row = document.createElement("div");
-      row.className = `list-row${proj.id === state.activeProjectId ? " selected" : ""}`;
-      row.innerHTML = `
-        <div>
-          <div class="list-row-title">${escapeHtml(proj.name)}</div>
-          <div class="list-row-sub mono">${escapeHtml(proj.id.slice(0, 8))} · ${escapeHtml(
-        proj.input_mode
-      )}</div>
-        </div>
-        <span class="pill ${proj.base_model ? "ok" : ""}">${
-        proj.base_model
-          ? state.lang === "en"
-            ? "Model Ready"
-            : "模型就绪"
-          : state.lang === "en"
-          ? "No Model"
-          : "未挂载模型"
-      }</span>
-      `;
-      row.addEventListener("click", () => selectProject(proj.id));
-      list.appendChild(row);
-    });
-  }
-
-  async function selectProject(projectId, notify = false) {
-    state.activeProjectId = projectId || "";
-    localStorage.setItem("zi2zi_project", state.activeProjectId);
-    renderProjectsList();
-    if (!state.activeProjectId) {
-      state.projectDetail = null;
-      renderProjectDetail();
-      return;
-    }
-    try {
-      state.projectDetail = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}`);
-      state.selectedRunIds = (state.projectDetail.runs || [])
-        .slice(0, 2)
-        .map((r) => r.id);
-      renderProjectDetail();
-      renderSimpleWizard();
-      if (state.view === "simple") refreshArtifacts();
-      if (state.view === "monitor") refreshDashboard();
-      if (state.view === "review") {
-        loadReviewPage(1);
-        refreshArtifacts();
-      }
-      if (notify) {
-        toast(
-          state.lang === "en"
-            ? `Switched to ${state.projectDetail.manifest.name}`
-            : `已切换至项目：${state.projectDetail.manifest.name}`,
-          "info"
-        );
-      }
-    } catch (err) {
-      toast(err.message, "error");
-    }
-  }
-
-  function renderProjectDetail() {
-    const detail = state.projectDetail;
-    const pills = $("projectReadinessPills");
-    const overview = $("projectOverviewBody");
-    const modelStatus = $("currentModelStatus");
-    const assetsSummary = $("savedAssetsSummary");
-
-    if (!detail) {
-      pills.innerHTML = "";
-      overview.innerHTML = `<div class="empty-state">${
-        state.lang === "en" ? "No project selected" : "尚未选择项目"
-      }</div>`;
-      modelStatus.textContent = "";
-      assetsSummary.innerHTML = "";
-      $("trainDatasetPath").value = "";
-      $("manageRunSelect").innerHTML = "";
-      $("genCheckpointSelect").innerHTML = "";
-      $("reviewBatchSelect").innerHTML = "";
-      $("exportBatchSelect").innerHTML = "";
-      return;
-    }
-
-    const m = detail.manifest;
-    const hasModel = Boolean(m.base_model);
-    const hasSource = (m.global_source_fonts || []).length > 0;
-    const hasTarget = (m.target_assets || []).length > 0;
-    const hasRefs = (m.style_reference_pool || []).length >= 8;
-    const hasDataset = Boolean(detail.dataset_path);
-
-    pills.innerHTML = [
-      { ok: hasModel, zh: "模型", en: "Model" },
-      { ok: hasSource && hasTarget && hasRefs, zh: "素材", en: "Assets" },
-      { ok: hasDataset, zh: "数据集", en: "Dataset" },
-      { ok: (detail.runs || []).length > 0, zh: "训练", en: "Runs" },
-    ]
-      .map(
-        (item) =>
-          `<span class="pill ${item.ok ? "ok" : ""}">${
-            state.lang === "en" ? item.en : item.zh
-          }</span>`
-      )
-      .join("");
-
-    const kv = (k, v) =>
-      `<div class="kv-item"><span class="kv-key">${escapeHtml(k)}</span><span class="kv-val">${escapeHtml(
-        v || "—"
-      )}</span></div>`;
-
-    overview.innerHTML =
-      kv(state.lang === "en" ? "Name" : "项目名称", m.name) +
-      kv("ID", m.id) +
-      kv(state.lang === "en" ? "Input Mode" : "输入模式", m.input_mode) +
-      kv(state.lang === "en" ? "Base Model" : "基础模型", basename(m.base_model)) +
-      kv(
-        state.lang === "en" ? "Style References" : "风格参考池",
-        `${(m.style_reference_pool || []).length}`
-      ) +
-      kv(state.lang === "en" ? "Training Runs" : "训练记录数", `${(detail.runs || []).length}`);
-
-    modelStatus.textContent = m.base_model
-      ? (state.lang === "en" ? "Current Base Model: " : "当前基础模型：") + m.base_model
-      : state.lang === "en"
-      ? "No base model attached yet."
-      : "尚未挂载基础模型。";
-
-    state.inputMode = m.input_mode === "glyphs" ? "glyphs" : "font";
-    document.querySelectorAll("#inputModeSwitch .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.mode === state.inputMode);
-    });
-    updateInputModeLabels();
-
-    const regionalSummary = Object.entries(m.regional_source_fonts || {})
-      .filter(([, arr]) => arr && arr.length)
-      .map(([reg, arr]) => `${reg}: ${arr.map(basename).join(", ")}`)
-      .join(" | ");
-
-    assetsSummary.innerHTML =
-      kv(
-        state.lang === "en" ? "Global Source Fonts" : "全局源字体",
-        (m.global_source_fonts || []).map(basename).join(", ")
-      ) +
-      kv(
-        state.lang === "en" ? "Target Assets" : "目标素材",
-        (m.target_assets || []).map(basename).join(", ")
-      ) +
-      kv(
-        state.lang === "en" ? "Style Reference Pool" : "已提取风格参考图",
-        `${(m.style_reference_pool || []).length} / 8+`
-      ) +
-      kv(state.lang === "en" ? "Regional Overrides" : "地区覆盖源字体", regionalSummary);
-
-    $("trainDatasetPath").value = detail.dataset_path || "";
-
-    const runSel = $("manageRunSelect");
-    runSel.innerHTML = "";
-    if (!(detail.runs || []).length) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = state.lang === "en" ? "No training runs" : "暂无训练记录";
-      runSel.appendChild(opt);
-    } else {
-      detail.runs.forEach((run) => {
-        const opt = document.createElement("option");
-        opt.value = run.id;
-        opt.textContent = `${run.id.slice(0, 8)} · ${run.status}`;
-        runSel.appendChild(opt);
-      });
-    }
-
-    renderMonitorRunChips();
-
-    const ckptSel = $("genCheckpointSelect");
-    ckptSel.innerHTML = "";
-    if (!(detail.generation_checkpoints || []).length) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = state.lang === "en" ? "No checkpoints available" : "暂无可用权重";
-      ckptSel.appendChild(opt);
-    } else {
-      detail.generation_checkpoints.forEach((item) => {
-        const opt = document.createElement("option");
-        opt.value = item.path;
-        opt.textContent = item.label;
-        if (item.path === detail.preferred_checkpoint) opt.selected = true;
-        ckptSel.appendChild(opt);
-      });
-    }
-
-    $("genPrimaryRegion").value = m.primary_region || "SC";
-    $("genSplitRegions").checked = m.split_regions !== false;
-    const savedPresets = new Set(m.charset_presets || []);
-    document.querySelectorAll(".preset-checkbox").forEach((box) => {
-      box.checked = savedPresets.has(box.value);
-      box.closest(".preset-card")?.classList.toggle("checked", box.checked);
-    });
-
-    [$("reviewBatchSelect"), $("exportBatchSelect")].forEach((sel) => {
-      const prev = sel.value;
-      sel.innerHTML = "";
-      if (!(detail.generation_batches || []).length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = state.lang === "en" ? "No generation batches" : "暂无生成批次";
-        sel.appendChild(opt);
-      } else {
-        detail.generation_batches.forEach((b) => {
-          const opt = document.createElement("option");
-          opt.value = b.path;
-          opt.textContent = b.label;
-          if (b.path === prev || (!prev && b.path === detail.preferred_batch)) {
-            opt.selected = true;
-          }
-          sel.appendChild(opt);
-        });
-      }
-    });
-  }
-
-  function renderSharedModels() {
-    [$("sharedModelSelect"), $("simpleSharedModelSelect")].forEach((sel) => {
-      if (!sel) return;
-      const prev = sel.value;
-      sel.innerHTML = "";
-      if (!state.sharedModels.length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = state.lang === "en" ? "Shared library is empty" : "共享目录暂无模型";
-        sel.appendChild(opt);
-        return;
-      }
-      state.sharedModels.forEach((item) => {
-        const opt = document.createElement("option");
-        opt.value = item.path;
-        const tag = item.architecture ? ` · ${item.architecture}` : "";
-        opt.textContent = `${item.name} (${item.size_mb} MB${tag})`;
-        if (item.path === prev) opt.selected = true;
-        sel.appendChild(opt);
-      });
-    });
-  }
-
-  function renderExportPackages() {
-    const box = $("exportPackagesList");
-    if (!state.exportPackages.length) {
-      box.innerHTML = `<div class="empty-state">${
-        state.lang === "en" ? "No exported packages yet." : "暂无已导出的项目迁移包。"
-      }</div>`;
-      return;
-    }
-    box.innerHTML = state.exportPackages
-      .map(
-        (pkg) => `
-      <div class="file-item">
-        <span class="mono">${escapeHtml(pkg.name)} (${pkg.size_mb} MB)</span>
-        <a href="${escapeHtml(pkg.url)}" download="${escapeHtml(pkg.name)}">${
-          state.lang === "en" ? "Download" : "下载"
-        }</a>
-      </div>`
-      )
-      .join("");
-  }
-
-  function renderPresets() {
-    const grid = $("genPresetsGrid");
-    grid.innerHTML = state.presets
-      .map(
-        (p) => {
-          const count = p.expected_count ?? p.count;
-          const suffix = count !== undefined && count !== null ? ` (${count})` : "";
-          return `
-      <label class="preset-card">
-        <input type="checkbox" class="preset-checkbox" value="${escapeHtml(p.id)}" />
-        <div>
-          <div class="preset-card-title">${escapeHtml(p.label)}${escapeHtml(suffix)}</div>
-          <div class="preset-card-sub">${escapeHtml(p.description || p.region || "")}</div>
-        </div>
-      </label>`;
-        }
-      )
-      .join("");
-    grid.querySelectorAll(".preset-checkbox").forEach((box) => {
-      box.addEventListener("change", () => {
-        box.closest(".preset-card").classList.toggle("checked", box.checked);
-      });
-    });
-
-    const quickHost = $("simpleQuickPresets");
-    if (quickHost) {
-      const quickIds = ["latin-ascii", "cjk-punctuation", "zh-Hans-3500", "zh-Hans-6500"];
-      const quickList = state.presets.filter((p) => quickIds.includes(p.id));
-      const displayList = quickList.length ? quickList : state.presets.slice(0, 4);
-      quickHost.innerHTML = displayList
-        .map((p) => {
-          const count = p.expected_count ?? p.count;
-          const suffix = count !== undefined && count !== null ? ` (${count})` : "";
-          return `
-            <label class="quick-preset-chip">
-              <input type="checkbox" class="simple-preset-checkbox" value="${escapeHtml(p.id)}" />
-              <span>${escapeHtml(p.label)}${escapeHtml(suffix)}</span>
-            </label>`;
-        })
-        .join("");
-      quickHost.querySelectorAll(".simple-preset-checkbox").forEach((box) => {
-        box.addEventListener("change", () => {
-          box.closest(".quick-preset-chip").classList.toggle("checked", box.checked);
-        });
-      });
-    }
-  }
-
-  function renderLineChart(containerId, seriesList) {
-    const host = $(containerId);
-    host.innerHTML = "";
-    if (!seriesList || !seriesList.length) {
-      host.innerHTML = `<div class="empty-state">${
-        state.lang === "en" ? "No telemetry points yet" : "暂无指标数据"
-      }</div>`;
-      return;
-    }
-    let minX = Infinity,
-      maxX = -Infinity,
-      minY = Infinity,
-      maxY = -Infinity;
-    seriesList.forEach((s) => {
-      s.points.forEach((pt) => {
-        const x = Number(pt.x);
-        const y = Number(pt.y);
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      });
-    });
-    if (!Number.isFinite(minX)) {
-      host.innerHTML = `<div class="empty-state">No numeric data</div>`;
-      return;
-    }
-    if (minX === maxX) maxX = minX + 1;
-    if (minY === maxY) {
-      minY -= 0.5;
-      maxY += 0.5;
-    }
-    const padY = (maxY - minY) * 0.08;
-    minY -= padY;
-    maxY += padY;
-
-    const W = 520,
-      H = 190,
-      pl = 52,
-      pr = 12,
-      pt = 12,
-      pb = 24;
-    const iw = W - pl - pr;
-    const ih = H - pt - pb;
-    const sx = (x) => pl + ((x - minX) / (maxX - minX)) * iw;
-    const sy = (y) => pt + ih - ((y - minY) / (maxY - minY)) * ih;
-
-    const fmt = (v) =>
-      Math.abs(v) < 0.01 && v !== 0 ? v.toExponential(1) : Number(v.toFixed(3)).toString();
-
-    let gridLines = "";
-    for (let i = 0; i <= 4; i++) {
-      const yVal = minY + ((maxY - minY) * i) / 4;
-      const yPos = sy(yVal);
-      gridLines += `<line x1="${pl}" y1="${yPos}" x2="${W - pr}" y2="${yPos}" stroke="var(--border)" stroke-width="1" />`;
-      gridLines += `<text x="${pl - 6}" y="${yPos + 4}" text-anchor="end" font-size="10" fill="var(--text-muted)">${escapeHtml(
-        fmt(yVal)
-      )}</text>`;
-    }
-    for (let i = 0; i <= 4; i++) {
-      const xVal = minX + ((maxX - minX) * i) / 4;
-      const xPos = sx(xVal);
-      gridLines += `<text x="${xPos}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${Math.round(
-        xVal
-      )}</text>`;
-    }
-
-    let paths = "";
-    const legendItems = [];
-    seriesList.forEach((s, idx) => {
-      const color = CHART_COLORS[idx % CHART_COLORS.length];
-      const valid = s.points.filter(
-        (p) => Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))
-      );
-      if (!valid.length) return;
-      const d = valid
-        .map((p, i) => `${i === 0 ? "M" : "L"}${sx(Number(p.x)).toFixed(1)},${sy(Number(p.y)).toFixed(1)}`)
-        .join(" ");
-      paths += `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" />`;
-      const last = valid[valid.length - 1];
-      legendItems.push(
-        `<span class="legend-item"><span class="legend-swatch" style="background:${color}"></span>${escapeHtml(
-          s.label
-        )} (${escapeHtml(fmt(Number(last.y)))})</span>`
-      );
-    });
-
-    host.innerHTML = `
-      <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        ${gridLines}
-        ${paths}
-      </svg>
-      <div class="chart-legend">${legendItems.join("")}</div>
-    `;
-  }
-
-  function renderMonitorRunChips() {
-    const container = $("monitorRunsCheckboxes");
-    const runs = (state.projectDetail && state.projectDetail.runs) || [];
-    if (!runs.length) {
-      container.innerHTML = `<div class="empty-state">${
-        state.lang === "en" ? "No training runs yet." : "当前项目暂无训练记录。"
-      }</div>`;
-      return;
-    }
-    container.innerHTML = runs
-      .map((run) => {
-        const checked = state.selectedRunIds.includes(run.id);
-        return `
-        <label class="run-chip ${checked ? "active" : ""}">
-          <input type="checkbox" class="monitor-run-box" value="${escapeHtml(run.id)}" ${
-          checked ? "checked" : ""
-        } />
-          <span class="mono">${escapeHtml(run.id.slice(0, 8))}</span>
-          <span class="pill">${escapeHtml(run.status)}</span>
-        </label>`;
-      })
-      .join("");
-    container.querySelectorAll(".monitor-run-box").forEach((box) => {
-      box.addEventListener("change", () => {
-        const boxes = [...container.querySelectorAll(".monitor-run-box:checked")];
-        if (boxes.length > 5) {
-          box.checked = false;
-          toast(
-            state.lang === "en" ? "Select at most 5 runs." : "最多同时对比 5 个训练记录。",
-            "error"
-          );
-          return;
-        }
-        state.selectedRunIds = boxes.map((b) => b.value);
-        renderMonitorRunChips();
-        refreshDashboard();
-      });
-    });
-  }
-
-  async function refreshDashboard() {
-    if (!state.activeProjectId) return;
-    try {
-      const data = await api(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/training/dashboard`,
-        {
-          method: "POST",
-          body: { run_ids: state.selectedRunIds, language: state.lang },
-        }
-      );
-      if (state.projectDetail) {
-        state.projectDetail.runs = data.runs || [];
-      }
-      renderLineChart("chart-loss", data.series.loss);
-      renderLineChart("chart-lr", data.series.lr);
-      renderLineChart("chart-resources", data.series.resources);
-      renderLineChart("chart-evaluation", data.series.evaluation);
-
-      const summary = [data.summary, data.error ? `Error: ${data.error}` : ""]
-        .filter(Boolean)
-        .join("\n");
-      $("monitorSummaryBar").textContent = summary;
-
-      const snapBox = $("monitorSnapshots");
-      if (!data.snapshots || !data.snapshots.length) {
-        snapBox.innerHTML = `<div class="empty-state">${
-          state.lang === "en" ? "No evaluation snapshots yet." : "暂无验证快照。"
-        }</div>`;
-      } else {
-        snapBox.innerHTML = data.snapshots
-          .map(
-            (s) => `
-          <div class="snapshot-item" data-url="${escapeHtml(s.url)}" data-cap="${escapeHtml(
-              s.caption
-            )}">
-            <img src="${escapeHtml(s.url)}" loading="lazy" alt="${escapeHtml(s.caption)}" />
-            <div class="snapshot-cap">${escapeHtml(s.caption)}</div>
-          </div>`
-          )
-          .join("");
-        snapBox.querySelectorAll(".snapshot-item").forEach((card) => {
-          card.addEventListener("click", () =>
-            openModal(card.dataset.url, card.dataset.cap)
-          );
-        });
-      }
-
-      const pWrap = $("monitorParamsTable");
-      if (!data.parameter_rows || !data.parameter_rows.length) {
-        pWrap.innerHTML = `<div class="empty-state">—</div>`;
-      } else {
-        pWrap.innerHTML = `
-          <table class="flat-table">
-            <thead><tr>${data.parameter_headers
-              .map((h) => `<th>${escapeHtml(h)}</th>`)
-              .join("")}</tr></thead>
-            <tbody>${data.parameter_rows
-              .map(
-                (row) =>
-                  `<tr>${row.map((cell) => `<td class="mono">${escapeHtml(cell)}</td>`).join("")}</tr>`
-              )
-              .join("")}</tbody>
-          </table>`;
-      }
-
-      const ckptBox = $("monitorCheckpoints");
-      ckptBox.innerHTML =
-        data.checkpoints && data.checkpoints.length
-          ? `<table class="flat-table"><thead><tr><th>Run</th><th>Epoch</th><th>Kind</th><th>Metric</th></tr></thead><tbody>${data.checkpoints
-              .map(
-                (c) =>
-                  `<tr><td class="mono">${escapeHtml(c.run)}</td><td>${escapeHtml(
-                    c.epoch
-                  )}</td><td>${escapeHtml(c.kind)}</td><td>${escapeHtml(c.metric)}</td></tr>`
-              )
-              .join("")}</tbody></table>`
-          : `<div class="empty-state">${
-              state.lang === "en" ? "No checkpoints logged" : "暂无检查点记录"
-            }</div>`;
-
-      const alertBox = $("monitorAlerts");
-      alertBox.innerHTML =
-        data.alerts && data.alerts.length
-          ? `<table class="flat-table"><thead><tr><th>Run</th><th>Step</th><th>Alert</th></tr></thead><tbody>${data.alerts
-              .map(
-                (a) =>
-                  `<tr><td class="mono">${escapeHtml(a.run)}</td><td>${escapeHtml(
-                    a.step
-                  )}</td><td>${escapeHtml(a.alert)}</td></tr>`
-              )
-              .join("")}</tbody></table>`
-          : `<div class="empty-state">${
-              state.lang === "en" ? "No alerts" : "无告警"
-            }</div>`;
-    } catch (err) {
-      toast(err.message, "error");
-    }
-  }
-
-  async function loadReviewPage(page = 1) {
-    if (!state.activeProjectId) return;
-    const batch = $("reviewBatchSelect").value;
-    const grid = $("reviewGlyphGrid");
-    if (!batch) {
-      grid.innerHTML = `<div class="empty-state">${
-        state.lang === "en" ? "No generation batch selected." : "请先选择或生成一个字形批次。"
-      }</div>`;
-      $("reviewPageInfo").textContent = "0 / 0";
-      return;
-    }
-    const search = $("reviewSearchInput").value.trim();
-    try {
-      const data = await api(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/page?batch_path=${encodeURIComponent(
-          batch
-        )}&search=${encodeURIComponent(search)}&page=${page}&page_size=100`
-      );
-      state.reviewPage = data.page;
-      state.reviewTotalPages = data.total_pages;
-      $("reviewPageInfo").textContent = `${data.page} / ${data.total_pages}`;
-      if (!data.items.length) {
-        grid.innerHTML = `<div class="empty-state">${
-          state.lang === "en" ? "No matching glyphs." : "未找到匹配的字形。"
-        }</div>`;
-        return;
-      }
-      grid.innerHTML = data.items
-        .map(
-          (item) => `
-        <div class="glyph-cell${item.manual ? " manual" : ""}${
-            item.codepoint === state.activeReviewCodepoint ? " active" : ""
-          }" data-cp="${escapeHtml(item.codepoint)}">
-          <img src="${escapeHtml(item.url)}" loading="lazy" alt="${escapeHtml(item.codepoint)}" />
-          <div class="glyph-meta">
-            <span>${escapeHtml(item.char)}</span>
-            <span class="mono">${escapeHtml(item.codepoint.replace("U+", ""))}</span>
-          </div>
-        </div>`
-        )
-        .join("");
-      grid.querySelectorAll(".glyph-cell").forEach((cell) => {
-        cell.addEventListener("click", () => {
-          state.activeReviewCodepoint = cell.dataset.cp;
-          grid.querySelectorAll(".glyph-cell").forEach((c) => c.classList.remove("active"));
-          cell.classList.add("active");
-          loadCandidates(cell.dataset.cp);
-        });
-      });
-    } catch (err) {
-      toast(err.message, "error");
-    }
-  }
-
-  async function loadCandidates(codepoint) {
-    const batch = $("reviewBatchSelect").value;
-    const body = $("candidateInspectorBody");
-    if (!batch || !codepoint) return;
-    try {
-      const data = await api(
-        `/api/projects/${encodeURIComponent(
-          state.activeProjectId
-        )}/review/candidates?batch_path=${encodeURIComponent(
-          batch
-        )}&codepoint=${encodeURIComponent(codepoint)}`
-      );
-      body.className = "";
-      body.innerHTML = `
-        <div class="kv-item">
-          <span class="kv-key">${escapeHtml(data.codepoint)}</span>
-          <span class="kv-val" style="font-size:20px;font-weight:600">${escapeHtml(data.char)}</span>
-        </div>
-        <div class="candidate-list" style="margin-top:10px">
-          ${data.candidates
-            .map(
-              (c) => `
-            <div class="candidate-card${c.selected ? " selected" : ""}" data-path="${escapeHtml(
-                c.path
-              )}">
-              <img src="${escapeHtml(c.url)}" alt="${escapeHtml(c.name)}" />
-              <div class="candidate-card-foot">${escapeHtml(c.name)}${
-                c.selected ? " (Selected)" : ""
-              }</div>
-            </div>`
-            )
-            .join("")}
-        </div>
-        <div class="action-row" style="margin-top:10px">
-          <button class="btn btn-ghost btn-xs" id="clearCandidateBtn" type="button">${
-            state.lang === "en" ? "Reset to Default" : "清除手动覆盖"
-          }</button>
-        </div>
-      `;
-      body.querySelectorAll(".candidate-card").forEach((card) => {
-        card.addEventListener("click", async () => {
-          try {
-            await api(
-              `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/select`,
-              {
-                method: "POST",
-                body: {
-                  batch_path: batch,
-                  codepoint,
-                  image_path: card.dataset.path,
-                },
-              }
-            );
-            toast(`${codepoint} updated`, "ok");
-            loadCandidates(codepoint);
-            loadReviewPage(state.reviewPage);
-          } catch (err) {
-            toast(err.message, "error");
-          }
-        });
-      });
-      $("clearCandidateBtn").addEventListener("click", async () => {
-        try {
-          await api(
-            `/api/projects/${encodeURIComponent(
-              state.activeProjectId
-            )}/review/select?codepoint=${encodeURIComponent(codepoint)}`,
-            { method: "DELETE" }
-          );
-          toast(`${codepoint} reset`, "info");
-          loadCandidates(codepoint);
-          loadReviewPage(state.reviewPage);
-        } catch (err) {
-          toast(err.message, "error");
-        }
-      });
-    } catch (err) {
-      toast(err.message, "error");
-    }
-  }
-
-  async function refreshArtifacts() {
-    if (!state.activeProjectId) return;
-    try {
-      const data = await api(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/export/artifacts`
-      );
-      const list = $("exportArtifactsList");
-      const simpleList = $("simpleArtifactsList");
-      const artifactHtml = !data.artifacts.length
-        ? `<div class="empty-state">${
-          state.lang === "en" ? "No built fonts yet." : "尚未导出字体产物。"
-        }</div>`
-        : data.artifacts
-            .map(
-              (a) => `
-          <div class="file-item">
-            <span class="mono">${escapeHtml(a.name)} (${a.size_kb} KB)</span>
-            <a href="${escapeHtml(a.url)}" download="${escapeHtml(a.name)}">${
-              state.lang === "en" ? "Download" : "下载"
-            }</a>
-          </div>`
-            )
-            .join("");
-      list.innerHTML = artifactHtml;
-      if (simpleList) simpleList.innerHTML = artifactHtml;
-
-      const svgGrid = $("exportSvgGrid");
-      if (!data.svgs.length) {
-        svgGrid.innerHTML = `<div class="empty-state">—</div>`;
-      } else {
-        svgGrid.innerHTML = data.svgs
-          .slice(0, 48)
-          .map(
-            (s) => `
-          <div class="svg-tile">
-            <img src="${escapeHtml(s.url)}" loading="lazy" alt="${escapeHtml(s.name)}" />
-            <span>${escapeHtml(s.name.replace(".svg", ""))}</span>
-          </div>`
-          )
-          .join("");
-      }
-
-      if (data.preview_font_url) {
-        state.previewFontCounter += 1;
-        const family = `Zi2ZiPreview_${state.previewFontCounter}`;
-        let styleEl = document.getElementById("dynamicFontPreviewStyle");
-        if (!styleEl) {
-          styleEl = document.createElement("style");
-          styleEl.id = "dynamicFontPreviewStyle";
-          document.head.appendChild(styleEl);
-        }
-        styleEl.textContent = `@font-face { font-family: "${family}"; src: url("${data.preview_font_url}&v=${state.previewFontCounter}") format("truetype"); }`;
-        $("specimenTextarea").style.fontFamily = `"${family}", sans-serif`;
-        $("previewFontBadge").textContent = data.preview_font_name;
-        if ($("simpleSpecimenTextarea")) {
-          $("simpleSpecimenTextarea").style.fontFamily = `"${family}", sans-serif`;
-          $("simplePreviewFontBadge").textContent = data.preview_font_name;
-        }
-      } else {
-        $("specimenTextarea").style.fontFamily = "inherit";
-        $("previewFontBadge").textContent =
-          state.lang === "en" ? "No built TTF yet" : "暂无可预览字库";
-        if ($("simpleSpecimenTextarea")) {
-          $("simpleSpecimenTextarea").style.fontFamily = "inherit";
-          $("simplePreviewFontBadge").textContent =
-            state.lang === "en" ? "No built TTF yet" : "暂无可预览字库";
-        }
-      }
-    } catch (err) {
-      toast(err.message, "error");
-    }
+  function formatNum(value, digits = 4) {
+    if (value == null || Number.isNaN(Number(value))) return "-";
+    const num = Number(value);
+    if (Math.abs(num) > 0 && Math.abs(num) < 0.001) return num.toExponential(2);
+    return num.toFixed(digits).replace(/\.?0+$/, "");
   }
 
   function statusPillClass(status) {
-    if (status === "completed") return "ok";
-    if (status === "running" || status === "queued") return "accent";
-    if (status === "failed") return "danger";
+    const s = String(status || "").toLowerCase();
+    if (s === "succeeded" || s === "completed" || s === "ready") return "ok";
+    if (s === "running" || s === "queued") return "accent";
+    if (s === "failed" || s === "error") return "danger";
+    if (s === "cancelled" || s === "interrupted") return "muted";
     return "warn";
   }
 
-  function renderJobsState() {
-    const active = state.jobs.filter((j) => j.status === "running" || j.status === "queued");
-    const badge = $("activeJobsBadge");
-    if (active.length) {
-      badge.textContent = String(active.length);
-      badge.classList.remove("hidden");
-      const running = active.find((j) => j.status === "running") || active[0];
-      $("topJobDot").className = "status-dot running";
-      $("topJobText").textContent =
-        state.lang === "en"
-          ? `${running.job_type} (${active.length})`
-          : `${running.job_type} 运行中 (${active.length})`;
-      if ($("simpleJobBanner")) {
-        $("simpleJobBanner").classList.remove("hidden");
-        const pct = Math.round((running.progress || 0) * 100);
-        $("simpleJobBannerText").textContent =
-          state.lang === "en"
-            ? `Running ${running.job_type} (${pct}%) — ${active.length} active job(s)`
-            : `正在执行 ${running.job_type}（进度 ${pct}%），当前共 ${active.length} 个活动任务`;
-      }
+  function statusLabel(status) {
+    const s = String(status || "").toLowerCase();
+    const mapZh = {
+      succeeded: "已完成",
+      completed: "已完成",
+      running: "运行中",
+      queued: "排队中",
+      failed: "失败",
+      cancelled: "已取消",
+      interrupted: "已中断",
+    };
+    const mapEn = {
+      succeeded: "succeeded",
+      completed: "completed",
+      running: "running",
+      queued: "queued",
+      failed: "failed",
+      cancelled: "cancelled",
+      interrupted: "interrupted",
+    };
+    return (isZh() ? mapZh[s] : mapEn[s]) || status || "-";
+  }
+
+  function jobTypeLabel(kind) {
+    const mapZh = {
+      model_download: "下载基础模型",
+      checkpoint_validate: "校验模型权重",
+      dataset: "构建训练数据",
+      dataset_build: "构建训练数据",
+      train: "LoRA 微调训练",
+      resume_train: "续训微调",
+      train_lora: "LoRA 微调训练",
+      generation: "字形批量生成",
+      generate_glyphs: "字形批量生成",
+      font_build: "导出字库",
+      export_font: "导出字库",
+      project_export: "导出项目包",
+      project_import: "导入项目包",
+    };
+    const mapEn = {
+      model_download: "Download Model",
+      checkpoint_validate: "Validate Checkpoint",
+      dataset: "Build Dataset",
+      dataset_build: "Build Dataset",
+      train: "LoRA Training",
+      resume_train: "Resume Training",
+      train_lora: "LoRA Training",
+      generation: "Generate Glyphs",
+      generate_glyphs: "Generate Glyphs",
+      font_build: "Export Font",
+      export_font: "Export Font",
+      project_export: "Export Package",
+      project_import: "Import Package",
+    };
+    return (isZh() ? mapZh[kind] : mapEn[kind]) || kind || (isZh() ? "后台任务" : "Job");
+  }
+
+  function presetCountLabel(p) {
+    if (!p) return "";
+    if (p.expected_count != null) {
+      return `${p.expected_count} ${isZh() ? "字" : "chars"}`;
+    }
+    if (p.id === "zh-Hans-GBK") {
+      return isZh() ? "约 21,000 字 · 编码全集" : "~21,000 chars · GBK full";
+    }
+    return p.region ? `${p.region} · ${isZh() ? "编码字符集" : "Codec set"}` : "";
+  }
+
+  function presetEstimatedCount(p) {
+    if (!p) return 0;
+    if (p.expected_count != null) return Number(p.expected_count) || 0;
+    if (p.id === "zh-Hans-GBK") return 21003;
+    if (p.id === "cjk-punctuation") return 120;
+    return 0;
+  }
+
+  function toast(message, kind = "") {
+    const stack = $("toastStack");
+    if (!stack) return;
+    const el = document.createElement("div");
+    el.className = `toast ${kind}`.trim();
+    el.textContent = message;
+    stack.appendChild(el);
+    setTimeout(() => {
+      el.remove();
+    }, 3600);
+  }
+
+  async function api(url, options = {}) {
+    const resp = await fetch(url, options);
+    const contentType = resp.headers.get("content-type") || "";
+    let payload = null;
+    if (contentType.includes("application/json")) {
+      payload = await resp.json();
     } else {
-      badge.classList.add("hidden");
-      $("topJobDot").className = "status-dot ok";
-      $("topJobText").textContent = state.lang === "en" ? "Idle" : "空闲";
-      if ($("simpleJobBanner")) {
-        $("simpleJobBanner").classList.add("hidden");
+      payload = await resp.text();
+    }
+    if (!resp.ok) {
+      const detail =
+        (payload && typeof payload === "object" && (payload.detail || payload.message)) ||
+        (typeof payload === "string" && payload) ||
+        `HTTP ${resp.status}`;
+      throw new Error(detail);
+    }
+    return payload;
+  }
+
+  function applyTheme(theme) {
+    state.theme = theme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", state.theme);
+    localStorage.setItem("zi2zi_theme", state.theme);
+    const btn = $("btnToggleTheme");
+    if (btn) {
+      btn.textContent = state.theme === "dark" ? t("theme.light") : t("theme.dark");
+    }
+    updateTbLinks();
+  }
+
+  function updateTbLinks() {
+    const url = `${state.tensorboardUrl}/?darkMode=${state.theme === "dark" ? "true" : "false"}`;
+    const side = $("tbExternalLink");
+    const mon = $("monitorTbLink");
+    if (side) side.href = url;
+    if (mon) mon.href = url;
+  }
+
+  function applyI18n() {
+    document.documentElement.lang = isZh() ? "zh-CN" : "en";
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (key) el.textContent = t(key);
+    });
+    const langBtn = $("btnToggleLang");
+    if (langBtn) langBtn.textContent = isZh() ? "EN" : "中文";
+    const themeBtn = $("btnToggleTheme");
+    if (themeBtn) themeBtn.textContent = state.theme === "dark" ? t("theme.light") : t("theme.dark");
+    updatePageHeader();
+  }
+
+  function updatePageHeader() {
+    const meta = VIEW_META[state.view] || VIEW_META.projects;
+    const pair = isZh() ? meta.zh : meta.en;
+    const titleEl = $("pageTitle");
+    const descEl = $("pageDesc");
+    if (titleEl) titleEl.textContent = pair[0];
+    if (descEl) descEl.textContent = pair[1];
+  }
+
+  function setUiMode(mode, switchView = true) {
+    state.uiMode = mode === "simple" ? "simple" : "advanced";
+    localStorage.setItem("zi2zi_ui_mode", state.uiMode);
+    document.body.setAttribute("data-ui-mode", state.uiMode);
+    document.querySelectorAll("#uiModeSwitcher [data-ui-mode]").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-ui-mode") === state.uiMode);
+    });
+    if (switchView) {
+      if (state.uiMode === "simple" && state.view !== "simple" && state.view !== "jobs") {
+        setView("simple");
+      } else if (state.uiMode === "advanced" && state.view === "simple") {
+        setView("projects");
       }
     }
+    renderSimpleWorkbench();
+  }
 
-    const wrap = $("jobsTableWrap");
-    if (!wrap) return;
-    if (!state.jobs.length) {
-      wrap.innerHTML = `<div class="empty-state">${
-        state.lang === "en" ? "No jobs yet." : "暂无后台任务。"
-      }</div>`;
-      return;
+  function setView(viewName) {
+    state.view = viewName;
+    document.querySelectorAll(".view").forEach((sec) => {
+      sec.classList.toggle("active", sec.id === `view-${viewName}`);
+    });
+    document.querySelectorAll(".nav-item").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-view") === viewName);
+    });
+    updatePageHeader();
+    if (viewName === "monitor") loadMonitorDashboard();
+    if (viewName === "review") {
+      loadReviewPage();
+      loadExportArtifacts();
     }
+    if (viewName === "jobs") refreshJobs(true);
+    if (viewName === "simple") {
+      renderSimpleWorkbench();
+      loadExportArtifacts();
+    }
+  }
 
-    wrap.innerHTML = `
-      <table class="flat-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>${state.lang === "en" ? "Type" : "类型"}</th>
-            <th>${state.lang === "en" ? "Status" : "状态"}</th>
-            <th>${state.lang === "en" ? "Device" : "设备"}</th>
-            <th>${state.lang === "en" ? "Progress" : "进度"}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${state.jobs
-            .map(
-              (j) => `
-            <tr data-id="${escapeHtml(j.id)}" class="${
-                j.id === state.selectedJobId ? "selected" : ""
-              }">
-              <td class="mono">${escapeHtml(j.id.slice(0, 8))}</td>
-              <td>${escapeHtml(j.job_type)}</td>
-              <td><span class="pill ${statusPillClass(j.status)}">${escapeHtml(
-                j.status
-              )}</span></td>
-              <td class="mono">${escapeHtml(j.gpu || "—")}</td>
-              <td class="mono">${Math.round((j.progress || 0) * 100)}%</td>
-            </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>`;
+  function setSimpleStep(step) {
+    const num = Math.max(1, Math.min(4, Number(step) || 1));
+    state.simpleStep = num;
+    document.querySelectorAll("#simpleStepper .stepper-item").forEach((btn) => {
+      btn.classList.toggle("active", Number(btn.getAttribute("data-step")) === num);
+    });
+    for (let i = 1; i <= 4; i++) {
+      const pane = $(`simplePane${i}`);
+      if (pane) pane.classList.toggle("active", i === num);
+    }
+    if (num === 4) {
+      loadExportArtifacts();
+    }
+  }
 
-    wrap.querySelectorAll("tbody tr").forEach((tr) => {
-      tr.addEventListener("click", () => selectJob(tr.dataset.id));
+  function setSimpleTab(tabName) {
+    state.simpleTab = tabName === "train" ? "train" : "generate";
+    document.querySelectorAll("#simpleActionTabs .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-simple-tab") === state.simpleTab);
+    });
+    const g = $("simplePaneGenerate");
+    const tr = $("simplePaneTrain");
+    if (g) g.classList.toggle("active", state.simpleTab === "generate");
+    if (tr) tr.classList.toggle("active", state.simpleTab === "train");
+  }
+
+  function setSimpleTrainTier(tier) {
+    state.simpleTrainTier = SIMPLE_TIERS[tier] ? tier : "standard";
+    document.querySelectorAll("#simpleTrainTierGrid .tier-card").forEach((card) => {
+      card.classList.toggle("active", card.getAttribute("data-tier") === state.simpleTrainTier);
     });
   }
 
-  async function refreshJobs() {
-    const onlyCurrent = $("jobsOnlyCurrentProject")?.checked;
-    const query =
-      onlyCurrent && state.activeProjectId
-        ? `?project_id=${encodeURIComponent(state.activeProjectId)}`
-        : "";
+  function setReviewSubtab(subtab) {
+    state.reviewSubtab = subtab === "export" ? "export" : "review";
+    document.querySelectorAll("#reviewExportTabs .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-subtab") === state.reviewSubtab);
+    });
+    const r = $("subtab-review");
+    const e = $("subtab-export");
+    if (r) r.classList.toggle("active", state.reviewSubtab === "review");
+    if (e) e.classList.toggle("active", state.reviewSubtab === "export");
+    if (state.reviewSubtab === "export") loadExportArtifacts();
+    else loadReviewPage();
+  }
+
+  function setInputMode(mode) {
+    state.inputMode = mode === "glyphs" || mode === "glyph_images" ? "glyph_images" : "font";
+    document.querySelectorAll("#inputModeGroup .seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.getAttribute("data-mode") === state.inputMode);
+    });
+    const fontBlock = $("targetFontBlock");
+    const imgBlock = $("targetImagesBlock");
+    if (fontBlock) fontBlock.classList.toggle("hidden", state.inputMode !== "font");
+    if (imgBlock) imgBlock.classList.toggle("hidden", state.inputMode !== "glyph_images");
+  }
+
+  // =========================================================
+  // BOOTSTRAP & PROJECT STATE
+  // =========================================================
+  async function bootstrap() {
     try {
-      const data = await api(`/api/jobs${query}`);
-      const prevRunning = state.jobs.some((j) => j.status === "running" || j.status === "queued");
+      const data = await api(`/api/bootstrap?lang=${encodeURIComponent(state.lang)}`);
+      state.projects = data.projects || [];
+      state.devices = data.devices || [];
+      state.presets = data.presets || [];
+      state.sharedModels = data.shared_models || [];
+      state.packages = data.export_packages || data.packages || [];
       state.jobs = data.jobs || [];
-      const nowRunning = state.jobs.some((j) => j.status === "running" || j.status === "queued");
-      renderJobsState();
-      if (state.selectedJobId && state.view === "jobs") {
-        await loadJobLog(state.selectedJobId);
+      if (data.tensorboard_url) {
+        state.tensorboardUrl = data.tensorboard_url;
+        updateTbLinks();
       }
-      if (prevRunning && !nowRunning) {
-        const [modelsData, pkgData, projData] = await Promise.all([
-          api("/api/models/shared"),
-          api("/api/project-packages"),
-          api("/api/projects"),
-        ]);
-        state.sharedModels = modelsData.models || [];
-        state.exportPackages = pkgData.packages || [];
-        state.projects = projData.projects || [];
-        renderSharedModels();
-        renderExportPackages();
-        renderProjectsList();
-        if (state.activeProjectId) {
-          await selectProject(state.activeProjectId, false);
-        }
+
+      renderSidebarHardware(data);
+      renderDeviceSelects();
+      renderSharedModelSelects();
+      renderPresetSelectors();
+      renderPackageSelect();
+      renderProjectSelect();
+      renderProjectCards();
+
+      const exists = state.projects.some((p) => p.id === state.activeProjectId);
+      if (!exists) {
+        state.activeProjectId = state.projects.length ? state.projects[0].id : "";
       }
-    } catch {
-      // Ignore transient poll errors
+      if (state.activeProjectId) {
+        await loadProjectDetail(state.activeProjectId);
+      } else {
+        state.activeProject = null;
+        renderActiveProjectViews();
+      }
+      renderJobs();
+    } catch (err) {
+      toast(err.message, "danger");
     }
   }
 
-  async function selectJob(jobId) {
-    state.selectedJobId = jobId;
-    renderJobsState();
-    await loadJobLog(jobId);
+  function renderSidebarHardware(data) {
+    const devEl = $("sidebarDevice");
+    const diskEl = $("sidebarDisk");
+    const devices = data.devices || [];
+    const gpu = devices.find((d) => d.training_supported) || devices[0];
+    if (devEl) devEl.textContent = gpu ? gpu.name : "CPU";
+    const freeGb = data.disk_free_gb != null ? data.disk_free_gb : data.disk && data.disk.free_gb;
+    if (diskEl && freeGb != null) {
+      diskEl.textContent = `${Number(freeGb).toFixed(1)} GB`;
+    }
+  }
+
+  function renderDeviceSelects() {
+    const trainSel = $("trainDeviceSelect");
+    const genSel = $("genDeviceSelect");
+    const opts = state.devices
+      .map((d) => {
+        const mem = d.memory_total_gb ? ` (${d.memory_total_gb} GB)` : "";
+        return `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name + mem)}</option>`;
+      })
+      .join("");
+    if (trainSel) {
+      const prev = trainSel.value;
+      trainSel.innerHTML = opts || `<option value="cpu">CPU</option>`;
+      if (prev && [...trainSel.options].some((o) => o.value === prev)) trainSel.value = prev;
+    }
+    if (genSel) {
+      const prev = genSel.value;
+      genSel.innerHTML = opts || `<option value="cpu">CPU</option>`;
+      if (prev && [...genSel.options].some((o) => o.value === prev)) genSel.value = prev;
+    }
+  }
+
+  function renderSharedModelSelects() {
+    const list = state.sharedModels || [];
+    const html = list.length
+      ? list
+          .map((m) => {
+            const tag = m.architecture ? ` [${m.architecture}]` : "";
+            const sz = m.size_mb ? ` (${m.size_mb} MB)` : "";
+            return `<option value="${escapeHtml(m.path)}">${escapeHtml(m.name + tag + sz)}</option>`;
+          })
+          .join("")
+      : `<option value="">${isZh() ? "共享目录暂无模型" : "No shared models"}</option>`;
+    ["sharedModelSelect", "simpleSharedModelSelect"].forEach((id) => {
+      const sel = $(id);
+      if (sel) sel.innerHTML = html;
+    });
+  }
+
+  function renderPresetSelectors() {
+    const all = state.presets || [];
+    const byId = new Map(all.map((p) => [p.id, p]));
+
+    // 1. Simple mode presets (GBK first!)
+    const simpleHost = $("simpleQuickPresets");
+    if (simpleHost) {
+      const checked = new Set(getCheckedPresetIds("simpleQuickPresets"));
+      const simpleList = SIMPLE_PRESET_IDS.map((id) => byId.get(id)).filter(Boolean);
+      simpleHost.innerHTML = simpleList
+        .map((p) => {
+          const isGbk = p.id === "zh-Hans-GBK";
+          const isChecked = checked.has(p.id);
+          const badge = isGbk
+            ? `<span class="pill accent">${isZh() ? "主推" : "Primary"}</span>`
+            : "";
+          return `<label class="preset-card ${isGbk ? "featured" : ""} ${isChecked ? "checked" : ""}">
+            <input type="checkbox" value="${escapeHtml(p.id)}" ${isChecked ? "checked" : ""} />
+            <span class="preset-card-body">
+              <span class="preset-card-head">
+                <span class="preset-card-name">${escapeHtml(p.label)}</span>
+                ${badge}
+              </span>
+              <span class="preset-card-count">${escapeHtml(presetCountLabel(p))}</span>
+            </span>
+          </label>`;
+        })
+        .join("");
+      simpleHost.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.addEventListener("change", () => {
+          cb.closest(".preset-card")?.classList.toggle("checked", cb.checked);
+          updateSimpleCharCount();
+        });
+      });
+    }
+
+    // 2. Advanced Generation primary presets (GBK first & highlighted!)
+    const primaryHost = $("genPrimaryPresets");
+    const extraHost = $("genExtraPresets");
+    if (primaryHost && extraHost) {
+      const checkedPrimary = new Set(getCheckedPresetIds("genPrimaryPresets"));
+      const checkedExtra = new Set(getCheckedPresetIds("genExtraPresets"));
+      const primarySet = new Set(PRIMARY_PRESET_IDS);
+      const primaryList = PRIMARY_PRESET_IDS.map((id) => byId.get(id)).filter(Boolean);
+      const extraList = all.filter((p) => !primarySet.has(p.id));
+
+      primaryHost.innerHTML = primaryList
+        .map((p) => {
+          const isGbk = p.id === "zh-Hans-GBK";
+          const isChecked = checkedPrimary.has(p.id);
+          const badge = isGbk
+            ? `<span class="pill accent">${isZh() ? "主用推荐" : "Primary"}</span>`
+            : "";
+          return `<label class="preset-card ${isGbk ? "featured" : ""} ${isChecked ? "checked" : ""}">
+            <input type="checkbox" value="${escapeHtml(p.id)}" ${isChecked ? "checked" : ""} />
+            <span class="preset-card-body">
+              <span class="preset-card-head">
+                <span class="preset-card-name">${escapeHtml(p.label)}</span>
+                ${badge}
+              </span>
+              <span class="preset-card-count">${escapeHtml(presetCountLabel(p))}</span>
+            </span>
+          </label>`;
+        })
+        .join("");
+
+      extraHost.innerHTML = extraList
+        .map((p) => {
+          const isChecked = checkedExtra.has(p.id);
+          const suffix = p.expected_count != null ? ` (${p.expected_count})` : "";
+          return `<label class="preset-chip">
+            <input type="checkbox" value="${escapeHtml(p.id)}" ${isChecked ? "checked" : ""} />
+            <span>${escapeHtml(p.label + suffix)}</span>
+          </label>`;
+        })
+        .join("");
+
+      primaryHost.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.addEventListener("change", () => {
+          cb.closest(".preset-card")?.classList.toggle("checked", cb.checked);
+          updateGenCharCount();
+        });
+      });
+      extraHost.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.addEventListener("change", updateGenCharCount);
+      });
+    }
+    updateGenCharCount();
+    updateSimpleCharCount();
+  }
+
+  function getCheckedPresetIds(containerId) {
+    const host = $(containerId);
+    if (!host) return [];
+    return [...host.querySelectorAll('input[type="checkbox"]:checked')].map((el) => el.value);
+  }
+
+  function presetCountSum(ids) {
+    const byId = new Map((state.presets || []).map((p) => [p.id, presetEstimatedCount(p)]));
+    return ids.reduce((acc, id) => acc + (byId.get(id) || 0), 0);
+  }
+
+  function uniqueCharsCount(text) {
+    const cleaned = String(text || "").replace(/[\s\r\n]/g, "");
+    return new Set([...cleaned]).size;
+  }
+
+  function updateGenCharCount() {
+    const badge = $("genCharCount");
+    if (!badge) return;
+    const textCount = uniqueCharsCount($("genText")?.value || "");
+    const presets = [...getCheckedPresetIds("genPrimaryPresets"), ...getCheckedPresetIds("genExtraPresets")];
+    const presetSum = presetCountSum(presets);
+    if (presets.length) {
+      badge.textContent = isZh()
+        ? `文本 ${textCount} + 预设约 ${presetSum} 字`
+        : `Text ${textCount} + ~${presetSum} preset chars`;
+    } else {
+      badge.textContent = isZh() ? `${textCount} 个唯一字符` : `${textCount} unique chars`;
+    }
+  }
+
+  function updateSimpleCharCount() {
+    const el = $("simpleGenCharCount");
+    if (!el) return;
+    const textCount = uniqueCharsCount($("simpleGenText")?.value || "");
+    const presets = getCheckedPresetIds("simpleQuickPresets");
+    const presetSum = presetCountSum(presets);
+    if (presets.length) {
+      el.textContent = isZh()
+        ? `已输入 ${textCount} 字 + 已勾选 ${presets.length} 个字符集（约 ${presetSum} 字）`
+        : `${textCount} custom chars + ${presets.length} presets (~${presetSum} chars)`;
+    } else {
+      el.textContent = isZh() ? `${textCount} 个去重字符` : `${textCount} unique chars`;
+    }
+  }
+
+  function renderProjectSelect() {
+    const sel = $("projectSelect");
+    if (!sel) return;
+    if (!state.projects.length) {
+      sel.innerHTML = `<option value="">${isZh() ? "暂无项目" : "No projects"}</option>`;
+      return;
+    }
+    sel.innerHTML = state.projects
+      .map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`)
+      .join("");
+    if (state.activeProjectId && state.projects.some((p) => p.id === state.activeProjectId)) {
+      sel.value = state.activeProjectId;
+    }
+  }
+
+  function renderProjectCards() {
+    const host = $("projectCardsGrid");
+    if (!host) return;
+    if (!state.projects.length) {
+      host.innerHTML = `<div class="empty-state">${isZh() ? "暂无项目，请在右上角输入名称创建一个字体项目。" : "No projects yet. Enter a name above to create one."}</div>`;
+      return;
+    }
+    host.innerHTML = state.projects
+      .map((p) => {
+        const active = p.id === state.activeProjectId;
+        const hasModel = Boolean(p.base_model);
+        const modelLabel = hasModel ? basename(p.base_model) : isZh() ? "未挂模型" : "No model";
+        return `<button class="project-card ${active ? "active" : ""}" type="button" data-pick-project="${escapeHtml(p.id)}">
+          <div class="project-card-top">
+            <span class="project-card-name">${escapeHtml(p.name)}</span>
+            <span class="pill ${hasModel ? "ok" : ""}">${escapeHtml(modelLabel)}</span>
+          </div>
+          <div class="project-card-meta">
+            <span>${escapeHtml(p.id)}</span>
+            <span>${p.input_mode === "glyphs" ? (isZh() ? "字形图" : "Images") : isZh() ? "字体文件" : "Font"}</span>
+            <span>${formatTime(p.updated_at || p.created_at)}</span>
+          </div>
+        </button>`;
+      })
+      .join("");
+    host.querySelectorAll("[data-pick-project]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const pid = btn.getAttribute("data-pick-project");
+        if (pid) selectProject(pid);
+      });
+    });
+  }
+
+  function renderPackageSelect() {
+    const sel = $("existingPackageSelect");
+    if (!sel) return;
+    const list = state.packages || [];
+    sel.innerHTML =
+      `<option value="">${isZh() ? "-- 选择已存在的项目包 --" : "-- Select existing package --"}</option>` +
+      list
+        .map((p) => `<option value="${escapeHtml(p.path)}">${escapeHtml(p.name)} (${p.size_mb || 0} MB)</option>`)
+        .join("");
+  }
+
+  async function selectProject(projectId) {
+    state.activeProjectId = projectId || "";
+    if (state.activeProjectId) {
+      localStorage.setItem("zi2zi_project_id", state.activeProjectId);
+    }
+    const sel = $("projectSelect");
+    if (sel) sel.value = state.activeProjectId;
+    renderProjectCards();
+    if (state.activeProjectId) {
+      await loadProjectDetail(state.activeProjectId);
+    } else {
+      state.activeProject = null;
+      renderActiveProjectViews();
+    }
+  }
+
+  async function loadProjectDetail(projectId) {
+    if (!projectId) return;
+    try {
+      const detail = await api(`/api/projects/${encodeURIComponent(projectId)}`);
+      state.activeProject = detail;
+      renderActiveProjectViews();
+      if (state.view === "monitor") loadMonitorDashboard();
+      if (state.view === "review") {
+        loadReviewPage();
+        loadExportArtifacts();
+      }
+      if (state.view === "simple" && state.simpleStep === 4) {
+        loadExportArtifacts();
+      }
+    } catch (err) {
+      toast(err.message, "danger");
+    }
+  }
+
+  function renderActiveProjectViews() {
+    const p = state.activeProject;
+    renderSidebarReadiness(p);
+    renderProjectSummary(p);
+    renderAssetsAndModels(p);
+    renderTrainingRuns(p);
+    renderGenerationControls(p);
+    renderReviewBatchSelects(p);
+    renderSimpleWorkbench();
+  }
+
+  function getManifest(detail) {
+    return detail ? detail.manifest || detail : null;
+  }
+
+  function renderSidebarReadiness(detail) {
+    const strip = $("sidebarReadinessStrip");
+    if (!strip) return;
+    const p = getManifest(detail);
+    const hasModel = Boolean(p && (p.base_model || p.active_checkpoint));
+    const hasAssets = Boolean(p && (p.global_source_fonts || []).length && (p.target_assets || []).length);
+    const hasTrain = Boolean(detail && (detail.runs || []).length);
+    const hasGen = Boolean(detail && (detail.generation_batches || []).length);
+    const flags = { model: hasModel, assets: hasAssets, train: hasTrain, gen: hasGen };
+    strip.querySelectorAll("[data-stage]").forEach((el) => {
+      const key = el.getAttribute("data-stage");
+      el.classList.toggle("done", Boolean(flags[key]));
+    });
+  }
+
+  function renderKv(containerId, rows) {
+    const el = $(containerId);
+    if (!el) return;
+    el.innerHTML = rows
+      .map(
+        ([k, v]) => `<div class="kv-item">
+          <div class="kv-key">${escapeHtml(k)}</div>
+          <div class="kv-val">${escapeHtml(v || "-")}</div>
+        </div>`
+      )
+      .join("");
+  }
+
+  function renderProjectSummary(detail) {
+    const p = getManifest(detail);
+    const pill = $("currentProjectIdPill");
+    if (pill) pill.textContent = p ? p.id : "-";
+    if (!p) {
+      renderKv("projectSummaryKv", [[isZh() ? "状态" : "Status", isZh() ? "未选择项目" : "No active project"]]);
+      return;
+    }
+    renderKv("projectSummaryKv", [
+      [isZh() ? "项目名称" : "Name", p.name],
+      [isZh() ? "输入模式" : "Mode", p.input_mode === "glyphs" ? (isZh() ? "已渲染字形图" : "Glyph Images") : isZh() ? "字体文件" : "Font File"],
+      [isZh() ? "基础模型" : "Base Model", p.base_model ? basename(p.base_model) : isZh() ? "未配置" : "Not configured"],
+      [isZh() ? "源 / 目标字体" : "Source / Target", `${(p.global_source_fonts || []).length} / ${(p.target_assets || []).length}`],
+      [isZh() ? "风格参考图" : "Style Refs", `${(p.style_reference_pool || []).length}`],
+      [isZh() ? "训练 / 生成批次" : "Runs / Batches", `${(detail.runs || []).length} / ${(detail.generation_batches || []).length}`],
+    ]);
+  }
+
+  function renderAssetsAndModels(detail) {
+    const p = getManifest(detail);
+    if (!p) {
+      renderKv("modelStatusKv", [[isZh() ? "基础模型" : "Base Model", "-"]]);
+      renderKv("assetStatusKv", [[isZh() ? "素材状态" : "Assets", "-"]]);
+      return;
+    }
+    setInputMode(p.input_mode || "font");
+    renderKv("modelStatusKv", [
+      [isZh() ? "当前基模" : "Current Base", p.base_model ? basename(p.base_model) : isZh() ? "尚未挂载" : "None"],
+      [isZh() ? "活跃权重" : "Active Ckpt", p.active_checkpoint ? basename(p.active_checkpoint) : "-"],
+      [isZh() ? "校验状态" : "Status", p.base_model ? (isZh() ? "已就绪" : "Ready") : isZh() ? "待配置" : "Pending"],
+    ]);
+    const srcNames = (p.global_source_fonts || []).map(basename).join(", ") || "-";
+    const tgtNames = (p.target_assets || []).map(basename).join(", ") || "-";
+    const dsPath = (detail && detail.dataset_path) || (p.training && p.training.dataset_path) || "";
+    if ($("trainDatasetPath") && dsPath && !$("trainDatasetPath").value) {
+      $("trainDatasetPath").value = dsPath;
+    }
+    renderKv("assetStatusKv", [
+      [isZh() ? "源字体" : "Source Fonts", srcNames],
+      [isZh() ? "目标素材" : "Target Assets", tgtNames],
+      [isZh() ? "风格参考池" : "Style Pool", `${(p.style_reference_pool || []).length} ${isZh() ? "张" : "imgs"}`],
+      [isZh() ? "已构建数据集" : "Dataset", dsPath ? basename(dsPath) : "-"],
+    ]);
+  }
+
+  function renderTrainingRuns(detail) {
+    const runs = (detail && detail.runs) || [];
+    const countPill = $("trainRunsCountPill");
+    if (countPill) countPill.textContent = String(runs.length);
+
+    const sel = $("resumeRunSelect");
+    if (sel) {
+      sel.innerHTML = runs.length
+        ? runs
+            .slice()
+            .reverse()
+            .map((r) => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.id)} (${escapeHtml(statusLabel(r.status))})</option>`)
+            .join("")
+        : `<option value="">${isZh() ? "暂无训练记录" : "No training runs"}</option>`;
+    }
+
+    const host = $("trainRunsTable");
+    if (host) {
+      if (!runs.length) {
+        host.innerHTML = `<div class="empty-state">${isZh() ? "暂无训练记录。构建数据集后即可启动微调。" : "No training runs yet."}</div>`;
+      } else {
+        host.innerHTML = runs
+          .slice()
+          .reverse()
+          .map((r) => {
+            const params = r.parameters || {};
+            const cls = statusPillClass(r.status);
+            return `<div class="run-card">
+              <div class="run-card-top">
+                <span class="run-card-id">${escapeHtml(r.id)}</span>
+                <span class="pill ${cls}">${escapeHtml(statusLabel(r.status))}</span>
+              </div>
+              <div class="run-card-meta">${escapeHtml(params.model || "JiT")} · epochs=${escapeHtml(params.epochs ?? "-")} · rank=${escapeHtml(params.lora_rank ?? "-")}</div>
+              <div class="run-card-meta">${formatTime(r.created_at)}</div>
+            </div>`;
+          })
+          .join("");
+      }
+    }
+
+    // Monitor run chips
+    const chipHost = $("monitorRunChips");
+    if (chipHost) {
+      const valid = new Set(runs.map((r) => r.id));
+      state.selectedRunIds = state.selectedRunIds.filter((id) => valid.has(id));
+      if (!state.selectedRunIds.length && runs.length) {
+        state.selectedRunIds = [runs[runs.length - 1].id];
+      }
+      if (!runs.length) {
+        chipHost.innerHTML = `<span class="muted">${isZh() ? "暂无可监控运行" : "No runs"}</span>`;
+      } else {
+        chipHost.innerHTML = runs
+          .slice()
+          .reverse()
+          .map((r) => {
+            const active = state.selectedRunIds.includes(r.id);
+            return `<button class="chip ${active ? "active" : ""}" type="button" data-run-id="${escapeHtml(r.id)}">${escapeHtml(r.id)}</button>`;
+          })
+          .join("");
+        chipHost.querySelectorAll("[data-run-id]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const rid = btn.getAttribute("data-run-id");
+            if (!rid) return;
+            if (state.selectedRunIds.includes(rid)) {
+              if (state.selectedRunIds.length > 1) {
+                state.selectedRunIds = state.selectedRunIds.filter((x) => x !== rid);
+              }
+            } else {
+              state.selectedRunIds.push(rid);
+            }
+            renderTrainingRuns(state.activeProject);
+            loadMonitorDashboard();
+          });
+        });
+      }
+    }
+  }
+
+  function renderGenerationControls(p) {
+    const sel = $("genCheckpointSelect");
+    if (!sel) return;
+    const choices = (p && p.generation_checkpoints) || [];
+    if (!choices.length) {
+      sel.innerHTML = `<option value="">${isZh() ? "暂无可用权重（请先准备基础模型）" : "No available checkpoints"}</option>`;
+      return;
+    }
+    const prev = sel.value;
+    sel.innerHTML = choices
+      .map((c) => `<option value="${escapeHtml(c.path)}">${escapeHtml(c.label)}</option>`)
+      .join("");
+    if (prev && choices.some((c) => c.path === prev)) {
+      sel.value = prev;
+    }
+  }
+
+  function renderReviewBatchSelects(detail) {
+    const batches = (detail && detail.generation_batches) || [];
+    const html = batches.length
+      ? batches
+          .map((b) => `<option value="${escapeHtml(b.path)}">${escapeHtml(b.label)}</option>`)
+          .join("")
+      : `<option value="">${isZh() ? "暂无生成批次" : "No batches"}</option>`;
+    ["reviewBatchSelect", "exportBatchSelect"].forEach((id) => {
+      const sel = $(id);
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = html;
+      if (prev && batches.some((b) => b.path === prev)) sel.value = prev;
+      else if (detail && detail.preferred_batch) sel.value = detail.preferred_batch;
+    });
+  }
+
+  // =========================================================
+  // SIMPLE MODE WORKBENCH
+  // =========================================================
+  function renderSimpleWorkbench() {
+    const detail = state.activeProject;
+    const p = getManifest(detail);
+    const hasProject = Boolean(p);
+    const hasModel = Boolean(p && (p.base_model || p.active_checkpoint));
+    const hasAssets = Boolean(p && (p.global_source_fonts || []).length && (p.target_assets || []).length);
+    const dsPath = (detail && detail.dataset_path) || (p && p.training && p.training.dataset_path) || "";
+    const hasDataset = Boolean(dsPath);
+    const batches = (detail && detail.generation_batches) || [];
+    const runs = (detail && detail.runs) || [];
+    const hasGen = batches.length > 0;
+    const hasExport = Boolean(state.loadedSpecimenFont);
+
+    const stepStates = [
+      { step: 1, done: hasProject && hasModel, label: hasProject && hasModel ? (isZh() ? "已就绪" : "Ready") : (isZh() ? "待配置" : "Setup") },
+      { step: 2, done: hasAssets, label: hasAssets ? (isZh() ? "已上传" : "Uploaded") : (isZh() ? "待上传" : "Pending") },
+      { step: 3, done: hasGen, label: hasGen ? `${batches.length} ${isZh() ? "批次" : "batches"}` : (hasAssets && hasModel ? (isZh() ? "可执行" : "Ready") : (isZh() ? "待前序" : "Waiting")) },
+      { step: 4, done: hasExport, label: hasExport ? (isZh() ? "已导出" : "Exported") : (hasGen ? (isZh() ? "可导出" : "Ready") : (isZh() ? "待生成" : "Pending")) },
+    ];
+
+    stepStates.forEach((st) => {
+      const item = document.querySelector(`#simpleStepper .stepper-item[data-step="${st.step}"]`);
+      if (item) item.classList.toggle("done", st.done);
+      const stateEl = $(`simpleStep${st.step}State`);
+      if (stateEl) stateEl.textContent = st.label;
+      const badgeEl = $(`simpleStep${st.step}Badge`);
+      if (badgeEl) {
+        badgeEl.textContent = st.label;
+        badgeEl.className = `pill ${st.done ? "ok" : ""}`.trim();
+      }
+    });
+
+    const projInfo = $("simpleProjectInfo");
+    if (projInfo) {
+      projInfo.textContent = p
+        ? isZh()
+          ? `当前项目：${p.name}（ID: ${p.id}）`
+          : `Active project: ${p.name} (${p.id})`
+        : isZh()
+        ? "尚未创建项目，请在上方输入名称并新建。"
+        : "No project yet. Enter a name above to create one.";
+    }
+
+    const modelInfo = $("simpleModelInfo");
+    if (modelInfo) {
+      modelInfo.textContent = hasModel
+        ? isZh()
+          ? `已挂载模型：${basename(p.base_model || p.active_checkpoint)}`
+          : `Attached model: ${basename(p.base_model || p.active_checkpoint)}`
+        : isZh()
+        ? "尚未挂载基础模型。可选已有共享模型或一键下载官方 JiT-B/16。"
+        : "No base model yet. Attach a shared checkpoint or download official JiT-B/16.";
+    }
+
+    const assetsInfo = $("simpleAssetsInfo");
+    if (assetsInfo) {
+      if (hasAssets) {
+        const src = (p.global_source_fonts || []).map(basename).join(", ");
+        const tgt = (p.target_assets || []).map(basename).join(", ");
+        assetsInfo.textContent = isZh()
+          ? `已配置源字体：${src}  |  目标字体：${tgt}（风格参考 ${(p.style_reference_pool || []).length} 张）`
+          : `Source: ${src} | Target: ${tgt} (${(p.style_reference_pool || []).length} style refs)`;
+      } else {
+        assetsInfo.textContent = isZh()
+          ? "请同时上传参考源字体与目标风格字体，然后点击「保存字体并提取风格参考」。"
+          : "Upload both source and target fonts, then save to extract style references.";
+      }
+    }
+
+    const genNote = $("simpleGenNote");
+    if (genNote) {
+      if (!hasModel || !hasAssets) {
+        genNote.textContent = isZh()
+          ? "请先在第 1、2 步完成基础模型与字体上传。"
+          : "Complete Step 1 (model) and Step 2 (fonts) before generating.";
+      } else {
+        const ckpt = (detail.generation_checkpoints || [])[0];
+        genNote.textContent = isZh()
+          ? `将自动使用权重「${ckpt ? ckpt.label : "基础模型"}」直接生成，支持 GBK 与任意文字组合。`
+          : `Will use "${ckpt ? ckpt.label : "base model"}" with GBK presets or custom text.`;
+      }
+    }
+
+    const trainNote = $("simpleTrainNote");
+    if (trainNote) {
+      trainNote.textContent = hasDataset
+        ? isZh()
+          ? `已检测到训练数据集（${basename(dsPath)}），可直接点击「2. 开始 LoRA 微调」或重新构建。`
+          : `Dataset ready (${basename(dsPath)}). Start LoRA fine-tuning or rebuild.`
+        : isZh()
+        ? "先选择字数档位并点击「1. 构建训练数据」，任务完成后再点击「2. 开始 LoRA 微调」。"
+        : "Choose a tier, run Step 1 (Build Dataset), then run Step 2 (Start LoRA Fine-Tune).";
+    }
+
+    // Right Snapshot Rail
+    const railPill = $("simpleRailProjectPill");
+    if (railPill) railPill.textContent = p ? p.name : isZh() ? "未创建" : "None";
+
+    const checklist = $("simpleChecklist");
+    if (checklist) {
+      const items = [
+        {
+          step: 1,
+          done: hasProject && hasModel,
+          title: isZh() ? "01 项目与基础模型" : "01 Project & Model",
+          val: hasModel ? basename(p.base_model || p.active_checkpoint) : isZh() ? "点击配置" : "Click to configure",
+        },
+        {
+          step: 2,
+          done: hasAssets,
+          title: isZh() ? "02 源字体与目标字体" : "02 Font Assets",
+          val: hasAssets ? `${basename(p.global_source_fonts[0])} -> ${basename(p.target_assets[0])}` : isZh() ? "待上传字体" : "Upload fonts",
+        },
+        {
+          step: 3,
+          done: hasGen,
+          title: isZh() ? "03 生字 / 微调" : "03 Generate / Tune",
+          val: hasGen
+            ? isZh()
+              ? `已有 ${batches.length} 个生成批次 / ${runs.length} 次微调`
+              : `${batches.length} batches / ${runs.length} runs`
+            : isZh()
+            ? "尚未生成字形"
+            : "No batches yet",
+        },
+        {
+          step: 4,
+          done: hasExport,
+          title: isZh() ? "04 导出 TTF 字库" : "04 Export TTF",
+          val: hasExport ? isZh() ? `已有 ${(p.exports || []).length} 个导出产物` : `${(p.exports || []).length} export(s)` : isZh() ? "待导出" : "Not exported",
+        },
+      ];
+      checklist.innerHTML = items
+        .map(
+          (it) => `<div class="check-item ${it.done ? "done" : ""}" data-jump-step="${it.step}">
+            <span class="check-indicator"></span>
+            <div class="check-copy">
+              <div class="check-title">${escapeHtml(it.title)}</div>
+              <div class="check-val">${escapeHtml(it.val)}</div>
+            </div>
+          </div>`
+        )
+        .join("");
+      checklist.querySelectorAll("[data-jump-step]").forEach((el) => {
+        el.addEventListener("click", () => setSimpleStep(el.getAttribute("data-jump-step")));
+      });
+    }
+  }
+
+  // =========================================================
+  // JOBS QUEUE & LIVE STATUS (SEMANTIC COLORS FIXED)
+  // =========================================================
+  async function refreshJobs(loadSelectedLog = false) {
+    try {
+      const data = await api("/api/jobs?limit=60");
+      state.jobs = data.jobs || [];
+      renderJobs();
+      if (loadSelectedLog && state.selectedJobId) {
+        await loadJobLog(state.selectedJobId);
+      }
+    } catch (_) {
+      // ignore transient polling errors
+    }
+  }
+
+  function renderJobs() {
+    const jobs = state.jobs || [];
+    const activeJobs = jobs.filter((j) => j.status === "running" || j.status === "queued");
+    const activeCount = activeJobs.length;
+
+    // Refresh project when a running job finishes
+    if (state.activeJobsHadRunning && activeCount === 0 && state.activeProjectId) {
+      loadProjectDetail(state.activeProjectId);
+    }
+    state.activeJobsHadRunning = activeCount > 0;
+
+    // Nav badges
+    ["navJobsBadge", "navJobsBadgeSimple"].forEach((id) => {
+      const badge = $(id);
+      if (!badge) return;
+      badge.textContent = String(activeCount);
+      badge.classList.toggle("hidden", activeCount === 0);
+    });
+
+    // Topbar job status chip
+    const topDot = $("topbarJobDot");
+    const topText = $("topbarJobText");
+    if (topDot && topText) {
+      if (activeCount > 0) {
+        const current = activeJobs[0];
+        topDot.className = "status-dot running";
+        topText.textContent = `${jobTypeLabel(current.job_type)} (${activeCount})`;
+      } else if (jobs[0] && jobs[0].status === "failed") {
+        topDot.className = "status-dot failed";
+        topText.textContent = isZh() ? "最近任务失败" : "Last job failed";
+      } else {
+        topDot.className = "status-dot idle";
+        topText.textContent = isZh() ? "空闲" : "Idle";
+      }
+    }
+
+    // Simple Mode Right-Rail Job Banner
+    const sBadge = $("simpleJobBadge");
+    const sName = $("simpleJobName");
+    const sMsg = $("simpleJobMsg");
+    if (sBadge && sName && sMsg) {
+      const latest = activeJobs[0] || jobs[0];
+      if (latest) {
+        sBadge.textContent = statusLabel(latest.status);
+        sBadge.className = `pill ${statusPillClass(latest.status)}`;
+        sName.textContent = jobTypeLabel(latest.job_type);
+        sMsg.textContent = latest.progress_text || latest.error || formatTime(latest.finished_at || latest.started_at || latest.created_at);
+      } else {
+        sBadge.textContent = isZh() ? "空闲" : "Idle";
+        sBadge.className = "pill";
+        sName.textContent = isZh() ? "当前无任务" : "No jobs yet";
+        sMsg.textContent = isZh()
+          ? "提交下载、建库、微调、生字或导出后，进度会实时显示在这里。"
+          : "Progress for downloads, training, generation, and export appears here.";
+      }
+    }
+
+    // Jobs List View
+    const listEl = $("jobsList");
+    if (!listEl) return;
+    if (!jobs.length) {
+      listEl.innerHTML = `<div class="empty-state">${isZh() ? "暂无后台任务记录" : "No background jobs yet"}</div>`;
+      return;
+    }
+    if (!state.selectedJobId || !jobs.some((j) => j.id === state.selectedJobId)) {
+      state.selectedJobId = jobs[0].id;
+    }
+    listEl.innerHTML = jobs
+      .map((j) => {
+        const active = j.id === state.selectedJobId;
+        const cls = statusPillClass(j.status);
+        return `<button class="job-row ${active ? "active" : ""}" type="button" data-job-id="${escapeHtml(j.id)}">
+          <div class="job-row-top">
+            <span class="job-row-type">${escapeHtml(jobTypeLabel(j.job_type))}</span>
+            <span class="pill ${cls}">${escapeHtml(statusLabel(j.status))}</span>
+          </div>
+          <div class="job-row-msg">${escapeHtml(j.progress_text || j.error || "-")}</div>
+          <div class="job-row-meta">
+            <span>${escapeHtml(j.id.slice(0, 8))}</span>
+            <span>${formatTime(j.finished_at || j.started_at || j.created_at)}</span>
+          </div>
+        </button>`;
+      })
+      .join("");
+    listEl.querySelectorAll("[data-job-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.selectedJobId = btn.getAttribute("data-job-id") || "";
+        renderJobs();
+        loadJobLog(state.selectedJobId);
+      });
+    });
+
+    updateJobActionButtons();
+  }
+
+  function updateJobActionButtons() {
+    const job = (state.jobs || []).find((j) => j.id === state.selectedJobId);
+    const title = $("jobLogTitle");
+    const pill = $("jobLogStatusPill");
+    const cancelBtn = $("btnCancelJob");
+    const retryBtn = $("btnRetryJob");
+    if (!job) {
+      if (title) title.textContent = t("jobs.logTitle");
+      if (pill) {
+        pill.textContent = "-";
+        pill.className = "pill";
+      }
+      if (cancelBtn) cancelBtn.disabled = true;
+      if (retryBtn) retryBtn.disabled = true;
+      return;
+    }
+    if (title) title.textContent = `${jobTypeLabel(job.job_type)} · ${job.id.slice(0, 8)}`;
+    if (pill) {
+      pill.textContent = statusLabel(job.status);
+      pill.className = `pill ${statusPillClass(job.status)}`;
+    }
+    if (cancelBtn) cancelBtn.disabled = !["queued", "running"].includes(job.status);
+    if (retryBtn) retryBtn.disabled = !["failed", "cancelled", "interrupted"].includes(job.status);
   }
 
   async function loadJobLog(jobId) {
+    if (!jobId) return;
     try {
       const data = await api(`/api/jobs/${encodeURIComponent(jobId)}/log`);
-      const job = data.job;
-      $("logPanelTitle").textContent = `${job.job_type} · ${job.id.slice(0, 8)}`;
-      $("logPanelMeta").textContent = `Status: ${job.status} | GPU: ${job.gpu || "—"} | Exit: ${
-        job.exit_code ?? "—"
-      }${job.error ? " | Error: " + job.error : ""}`;
-      const viewer = $("jobLogOutput");
-      const atBottom = viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 40;
-      viewer.textContent = data.log || "(empty log)";
-      if (atBottom) viewer.scrollTop = viewer.scrollHeight;
-
-      const canCancel = job.status === "queued" || job.status === "running";
-      const canRetry = ["failed", "cancelled", "interrupted"].includes(job.status);
-      $("cancelJobBtn").classList.toggle("hidden", !canCancel);
-      $("retryJobBtn").classList.toggle("hidden", !canRetry);
+      const viewer = $("jobLogViewer");
+      if (viewer) {
+        viewer.textContent = data.log || (isZh() ? "暂无日志输出。" : "No log output yet.");
+        viewer.scrollTop = viewer.scrollHeight;
+      }
     } catch (err) {
-      toast(err.message, "error");
+      toast(err.message, "danger");
     }
   }
 
-  function openModal(url, caption) {
-    $("modalImage").src = url;
-    $("modalCaption").textContent = caption || "";
-    $("imageModal").classList.remove("hidden");
+  // =========================================================
+  // MONITOR DASHBOARD & PURE SVG CHARTS
+  // =========================================================
+  async function loadMonitorDashboard() {
+    if (!state.activeProjectId) return;
+    try {
+      const data = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/training/dashboard`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_ids: state.selectedRunIds, language: state.lang }),
+      });
+      const series = data.series || {};
+      renderMonitorKpis(data);
+      renderMonitorAlerts(data.alerts || []);
+      renderSvgChart("chartLoss", series.loss || [], "chartLossMeta");
+      renderSvgChart("chartEval", series.evaluation || [], "chartEvalMeta");
+      renderSvgChart("chartLr", series.lr || [], "chartLrMeta");
+      renderSvgChart("chartSys", series.resources || [], "chartSysMeta");
+      renderMonitorSnapshots(data.snapshots || []);
+      const paramHeaders = data.parameter_headers || [];
+      const paramRows = (data.parameter_rows || []).map((row) => {
+        const obj = {};
+        paramHeaders.forEach((h, i) => {
+          obj[h] = row[i] != null ? row[i] : "";
+        });
+        return obj;
+      });
+      renderSimpleTable("monitorHyperTable", paramRows);
+      renderSimpleTable("monitorCkptTable", data.checkpoints || []);
+    } catch (err) {
+      toast(err.message, "danger");
+    }
   }
 
-  function setupDropzones() {
+  function renderMonitorKpis(data) {
+    const strip = $("monitorKpiStrip");
+    if (!strip) return;
+    const series = data.series || {};
+    const lastOf = (seriesList, match) => {
+      for (const s of seriesList || []) {
+        if (!match || String(s.label || s.metric || "").toLowerCase().includes(match)) {
+          const pts = s.points || [];
+          if (pts.length) return pts[pts.length - 1];
+        }
+      }
+      return null;
+    };
+    const lossPt = lastOf(series.loss);
+    const lrPt = lastOf(series.lr);
+    const ssimPt = lastOf(series.evaluation, "ssim");
+    const memPt = lastOf(series.resources, "mem") || lastOf(series.resources);
+
+    const cards = [
+      { label: isZh() ? "最新步数 (Step)" : "Latest Step", val: lossPt ? String(lossPt.x) : "-", sub: isZh() ? "最近一次记录" : "Last logged" },
+      { label: isZh() ? "最新 Loss" : "Latest Loss", val: lossPt ? formatNum(lossPt.y, 4) : "-", sub: isZh() ? "训练损失" : "Train loss" },
+      { label: "Eval SSIM", val: ssimPt ? formatNum(ssimPt.y, 4) : "-", sub: isZh() ? "验证结构相似度" : "Validation SSIM" },
+      { label: isZh() ? "学习率 / 系统" : "LR / System", val: lrPt ? formatNum(lrPt.y, 6) : (memPt ? formatNum(memPt.y, 2) : "-"), sub: memPt ? `Sys: ${formatNum(memPt.y, 2)}` : "Learning rate" },
+    ];
+    strip.innerHTML = cards
+      .map(
+        (c) => `<div class="kpi-card">
+          <div class="kpi-label">${escapeHtml(c.label)}</div>
+          <div class="kpi-val">${escapeHtml(c.val)}</div>
+          <div class="kpi-sub">${escapeHtml(c.sub)}</div>
+        </div>`
+      )
+      .join("");
+  }
+
+  function renderMonitorAlerts(alerts) {
+    const host = $("monitorAlerts");
+    if (!host) return;
+    if (!alerts.length) {
+      host.innerHTML = "";
+      return;
+    }
+    host.innerHTML = alerts
+      .map((a) => `<div class="alert-item danger">${escapeHtml(typeof a === "string" ? a : `[${a.run || ""}] ${a.alert || ""}`)}</div>`)
+      .join("");
+  }
+
+  function renderSvgChart(hostId, seriesList, metaId) {
+    const host = $(hostId);
+    const meta = $(metaId);
+    if (!host) return;
+    const valid = (seriesList || []).filter((s) => (s.points || []).length > 0);
+    if (!valid.length) {
+      host.innerHTML = `<div class="empty-state">${isZh() ? "暂无曲线数据" : "No metric points yet"}</div>`;
+      if (meta) meta.textContent = "";
+      return;
+    }
+
+    const allPts = valid.flatMap((s) => s.points);
+    let minX = Math.min(...allPts.map((p) => p.x));
+    let maxX = Math.max(...allPts.map((p) => p.x));
+    let minY = Math.min(...allPts.map((p) => p.y));
+    let maxY = Math.max(...allPts.map((p) => p.y));
+    if (minX === maxX) maxX = minX + 1;
+    if (minY === maxY) {
+      minY -= 0.1;
+      maxY += 0.1;
+    }
+
+    const W = 540;
+    const H = 200;
+    const padL = 48;
+    const padR = 14;
+    const padT = 12;
+    const padB = 24;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const sx = (x) => padL + ((x - minX) / (maxX - minX)) * plotW;
+    const sy = (y) => padT + (1 - (y - minY) / (maxY - minY)) * plotH;
+
+    const gridLines = [0, 0.25, 0.5, 0.75, 1]
+      .map((tNorm) => {
+        const y = padT + tNorm * plotH;
+        const v = maxY - tNorm * (maxY - minY);
+        return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--chart-grid)" stroke-width="1" />
+          <text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="var(--text-3)" font-size="10">${escapeHtml(formatNum(v, 3))}</text>`;
+      })
+      .join("");
+
+    const paths = valid
+      .map((s, idx) => {
+        const color = CHART_COLORS[idx % CHART_COLORS.length];
+        const d = s.points
+          .map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`)
+          .join(" ");
+        return `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />`;
+      })
+      .join("");
+
+    const legend = valid
+      .map((s, idx) => {
+        const color = CHART_COLORS[idx % CHART_COLORS.length];
+        const last = s.points[s.points.length - 1];
+        return `<span class="legend-item"><i class="legend-swatch" style="background:${color}"></i>${escapeHtml(s.label || s.metric || "")}: ${formatNum(last.y, 4)}</span>`;
+      })
+      .join("");
+
+    host.innerHTML = `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        ${gridLines}
+        ${paths}
+        <text x="${padL}" y="${H - 5}" fill="var(--text-3)" font-size="10">${minX}</text>
+        <text x="${W - padR}" y="${H - 5}" text-anchor="end" fill="var(--text-3)" font-size="10">${maxX}</text>
+      </svg>
+      <div class="chart-legend">${legend}</div>`;
+
+    if (meta) meta.textContent = `${valid.length} ${isZh() ? "条曲线" : "series"}`;
+  }
+
+  function renderMonitorSnapshots(items) {
+    const host = $("monitorSnapshots");
+    const meta = $("monitorSnapshotMeta");
+    if (meta) meta.textContent = items.length ? `${items.length} ${isZh() ? "张" : "items"}` : "";
+    if (!host) return;
+    if (!items.length) {
+      host.innerHTML = `<div class="empty-state">${isZh() ? "暂无验证字形快照" : "No validation snapshots yet"}</div>`;
+      return;
+    }
+    host.innerHTML = items
+      .map(
+        (it) => `<div class="snapshot-card">
+          <img src="${escapeHtml(it.url)}" alt="${escapeHtml(it.caption || "")}" loading="lazy" />
+          <div class="snapshot-cap">${escapeHtml(it.caption || "")}</div>
+        </div>`
+      )
+      .join("");
+  }
+
+  function renderSimpleTable(hostId, rows) {
+    const host = $(hostId);
+    if (!host) return;
+    if (!rows || !rows.length) {
+      host.innerHTML = `<div class="empty-state">${isZh() ? "暂无记录" : "No records"}</div>`;
+      return;
+    }
+    const cols = Object.keys(rows[0]);
+    const head = cols.map((c) => `<th>${escapeHtml(c)}</th>`).join("");
+    const body = rows
+      .map((r) => `<tr>${cols.map((c) => `<td>${escapeHtml(r[c])}</td>`).join("")}</tr>`)
+      .join("");
+    host.innerHTML = `<table class="data-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  // =========================================================
+  // REVIEW & EXPORT
+  // =========================================================
+  async function loadReviewPage() {
+    const grid = $("reviewGlyphGrid");
+    if (!state.activeProjectId || !grid) return;
+    const batchPath = $("reviewBatchSelect")?.value || "";
+    if (!batchPath) {
+      grid.innerHTML = `<div class="empty-state">${isZh() ? "暂无生成批次，请先前往「字形生成」生成一批字形。" : "No generation batches yet."}</div>`;
+      return;
+    }
+    const q = $("reviewQueryInput")?.value.trim() || "";
+    try {
+      const data = await api(
+        `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/page?batch_path=${encodeURIComponent(batchPath)}&page=${state.reviewPage}&page_size=48&search=${encodeURIComponent(q)}`
+      );
+      state.reviewTotalPages = Math.max(1, data.total_pages || 1);
+      state.reviewPage = Math.min(state.reviewPage, state.reviewTotalPages);
+      const lbl = $("reviewPageLabel");
+      if (lbl) lbl.textContent = `${state.reviewPage} / ${state.reviewTotalPages}`;
+      const items = data.items || [];
+      const sum = $("reviewSummaryText");
+      if (sum) sum.textContent = isZh() ? `当前页 ${items.length} 字` : `${items.length} glyphs on page`;
+
+      if (!items.length) {
+        grid.innerHTML = `<div class="empty-state">${isZh() ? "当前筛选条件下没有字形" : "No glyphs match filter"}</div>`;
+        return;
+      }
+      grid.innerHTML = items
+        .map((it) => {
+          const active = it.codepoint === state.selectedReviewChar;
+          const img = it.url ? `<img src="${escapeHtml(it.url)}" alt="${escapeHtml(it.char)}" loading="lazy" />` : `<div class="empty-state">-</div>`;
+          return `<button class="glyph-cell ${active ? "active" : ""} ${it.manual ? "warn" : ""}" type="button" data-review-cp="${escapeHtml(it.codepoint)}">
+            ${img}
+            <span class="glyph-char">${escapeHtml(it.char)}</span>
+            <span class="glyph-meta">${escapeHtml(it.codepoint || "")}</span>
+          </button>`;
+        })
+        .join("");
+      grid.querySelectorAll("[data-review-cp]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.selectedReviewChar = btn.getAttribute("data-review-cp") || "";
+          grid.querySelectorAll(".glyph-cell").forEach((c) => c.classList.toggle("active", c === btn));
+          loadReviewCandidates(batchPath, state.selectedReviewChar);
+        });
+      });
+    } catch (err) {
+      toast(err.message, "danger");
+    }
+  }
+
+  async function loadReviewCandidates(batchPath, codepoint) {
+    if (!state.activeProjectId || !batchPath || !codepoint) return;
+    const list = $("candidateList");
+    const codeEl = $("candidateCharCode");
+    try {
+      const data = await api(
+        `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/candidates?batch_path=${encodeURIComponent(batchPath)}&codepoint=${encodeURIComponent(codepoint)}`
+      );
+      if (codeEl) codeEl.textContent = `${data.char || ""} (${codepoint})`;
+      const cands = data.candidates || [];
+      if (!cands.length) {
+        if (list) list.innerHTML = `<div class="empty-state">${isZh() ? "无候选图像" : "No candidates"}</div>`;
+        return;
+      }
+      if (list) {
+        list.innerHTML = cands
+          .map(
+            (c, idx) => `<button class="candidate-card ${c.selected ? "selected" : ""}" type="button" data-cand-path="${escapeHtml(c.path)}">
+              <img src="${escapeHtml(c.url)}" alt="${escapeHtml(c.name)}" />
+              <span class="pill ${c.selected ? "ok" : ""}">#${idx + 1}${c.selected ? (isZh() ? " · 已选" : " · Selected") : ""}</span>
+            </button>`
+          )
+          .join("");
+        list.querySelectorAll("[data-cand-path]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const imagePath = btn.getAttribute("data-cand-path") || "";
+            try {
+              await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/review/select`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ batch_path: batchPath, codepoint, image_path: imagePath }),
+              });
+              toast(isZh() ? `已选定 ${codepoint} 的候选字形` : `Selected candidate for ${codepoint}`, "ok");
+              loadReviewCandidates(batchPath, codepoint);
+              loadReviewPage();
+            } catch (err) {
+              toast(err.message, "danger");
+            }
+          });
+        });
+      }
+    } catch (err) {
+      toast(err.message, "danger");
+    }
+  }
+
+  async function loadExportArtifacts() {
+    if (!state.activeProjectId) return;
+    try {
+      const data = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/export/artifacts`);
+      const downloads = data.artifacts || data.downloads || [];
+      const svgs = data.svgs || data.svg_samples || [];
+      const html = downloads.length
+        ? downloads
+            .map(
+              (d) => `<div class="file-row">
+                <span class="file-name">${escapeHtml(d.name)}</span>
+                <a class="btn ghost compact" href="${escapeHtml(d.url)}" download="${escapeHtml(d.name)}">${isZh() ? "下载" : "Download"}</a>
+              </div>`
+            )
+            .join("")
+        : `<div class="empty-state">${isZh() ? "尚未导出字库文件" : "No exported files yet"}</div>`;
+
+      ["exportDownloadList", "simpleExportDownloads"].forEach((id) => {
+        const el = $(id);
+        if (el) el.innerHTML = html;
+      });
+
+      const svgHost = $("exportSvgGrid");
+      if (svgHost) {
+        svgHost.innerHTML = svgs.length
+          ? svgs.map((s) => `<div class="svg-card"><img src="${escapeHtml(s.url)}" alt="${escapeHtml(s.name)}" loading="lazy" /></div>`).join("")
+          : `<div class="empty-state">${isZh() ? "导出后展示矢量抽样" : "Vector samples appear after export"}</div>`;
+      }
+
+      const previewUrl = data.preview_font_url || (downloads.find((d) => String(d.name || "").toLowerCase().endsWith(".ttf")) || {}).url;
+      const previewName = data.preview_font_name || (downloads.find((d) => String(d.name || "").toLowerCase().endsWith(".ttf")) || {}).name;
+      if (previewUrl) {
+        await loadSpecimenFont(previewUrl, previewName || "preview.ttf");
+        renderSimpleWorkbench();
+      }
+    } catch (_) {
+      // ignore if no exports yet
+    }
+  }
+
+  async function loadSpecimenFont(url, name) {
+    const fontFamily = `Zi2ziPreview_${Date.now()}`;
+    try {
+      const face = new FontFace(fontFamily, `url(${url}?t=${Date.now()})`);
+      const loaded = await face.load();
+      document.fonts.add(loaded);
+      state.loadedSpecimenFont = fontFamily;
+      ["specimenInput", "simpleSpecimenInput"].forEach((id) => {
+        const el = $(id);
+        if (el) el.style.fontFamily = `"${fontFamily}", sans-serif`;
+      });
+      ["specimenFontBadge", "simpleSpecimenBadge"].forEach((id) => {
+        const el = $(id);
+        if (el) {
+          el.textContent = name;
+          el.className = "pill ok";
+        }
+      });
+    } catch (_) {
+      // font load fallback
+    }
+  }
+
+  // =========================================================
+  // ACTIONS (SHARED ACROSS SIMPLE & ADVANCED MODES)
+  // =========================================================
+  async function createProjectByName(name) {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) {
+      toast(isZh() ? "请输入项目名称" : "Please enter a project name", "danger");
+      return;
+    }
+    try {
+      const res = await api("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      const proj = res.project || res;
+      toast(isZh() ? `已创建项目：${proj.name}` : `Created project: ${proj.name}`, "ok");
+      state.activeProjectId = proj.id;
+      localStorage.setItem("zi2zi_project_id", proj.id);
+      await bootstrap();
+    } catch (err) {
+      toast(err.message, "danger");
+    }
+  }
+
+  async function attachSharedModel(path) {
+    if (!state.activeProjectId) {
+      toast(isZh() ? "请先创建或选择项目" : "Select a project first", "danger");
+      return;
+    }
+    if (!path) {
+      toast(isZh() ? "请选择共享模型" : "Select a shared model", "danger");
+      return;
+    }
+    try {
+      await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/models/attach-shared`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model_path: path }),
+      });
+      toast(isZh() ? "已挂载基础模型" : "Base model attached", "ok");
+      await loadProjectDetail(state.activeProjectId);
+      renderProjectCards();
+    } catch (err) {
+      toast(err.message, "danger");
+    }
+  }
+
+  async function downloadOfficialModel(source, variant) {
+    try {
+      const res = await api("/api/models/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model_name: variant || "JiT-B/16",
+        }),
+      });
+      toast(isZh() ? `已提交模型下载任务 (${res.job_id})` : `Download queued (${res.job_id})`, "ok");
+      state.selectedJobId = res.job_id;
+      await refreshJobs(false);
+    } catch (err) {
+      toast(err.message, "danger");
+    }
+  }
+
+  async function importModel(purpose, fileEl, pathEl) {
+    if (!state.activeProjectId) {
+      toast(isZh() ? "请先创建或选择项目" : "Select a project first", "danger");
+      return;
+    }
+    const fd = new FormData();
+    if (fileEl && fileEl.files && fileEl.files[0]) {
+      fd.append("file", fileEl.files[0]);
+      fd.append("trusted", "true");
+    } else {
+      toast(isZh() ? "请选择本地权重文件 (.pth / .pt)" : "Choose a local weight file (.pth / .pt)", "danger");
+      return;
+    }
+    try {
+      await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/models/import`, {
+        method: "POST",
+        body: fd,
+      });
+      toast(isZh() ? "模型权重导入成功" : "Model weight imported", "ok");
+      await loadProjectDetail(state.activeProjectId);
+      await bootstrap();
+    } catch (err) {
+      toast(err.message, "danger");
+    }
+  }
+
+  function bindDropzones() {
     document.querySelectorAll(".dropzone").forEach((zone) => {
-      const inputId = zone.dataset.input;
-      const input = $(inputId);
-      const labelEl = zone.querySelector(".dropzone-files");
-
-      const updateNames = () => {
-        if (!labelEl) return;
-        const files = [...(input.files || [])];
-        labelEl.textContent = files.length
-          ? files.length <= 3
-            ? files.map((f) => f.name).join(", ")
-            : `${files.length} files (${files[0].name}, ...)`
-          : "";
+      const inputId = zone.getAttribute("data-file-input");
+      const input = inputId ? $(inputId) : zone.querySelector('input[type="file"]');
+      if (!input) return;
+      const filesEl = zone.querySelector(".dropzone-files");
+      const showFiles = () => {
+        if (!filesEl) return;
+        const names = [...(input.files || [])].map((f) => f.name);
+        filesEl.textContent = names.join(", ");
       };
-
-      zone.addEventListener("click", () => input.click());
-      input.addEventListener("change", updateNames);
+      input.addEventListener("change", showFiles);
       zone.addEventListener("dragover", (e) => {
         e.preventDefault();
         zone.classList.add("dragover");
@@ -1700,917 +2045,674 @@
       zone.addEventListener("drop", (e) => {
         e.preventDefault();
         zone.classList.remove("dragover");
-        if (e.dataTransfer && e.dataTransfer.files.length) {
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
           input.files = e.dataTransfer.files;
-          updateNames();
+          showFiles();
         }
       });
     });
   }
 
   function bindEvents() {
-    document.querySelectorAll(".nav-item").forEach((btn) => {
-      btn.addEventListener("click", () => switchView(btn.dataset.view));
+    // Mode Switcher
+    document.querySelectorAll("#uiModeSwitcher [data-ui-mode]").forEach((btn) => {
+      btn.addEventListener("click", () => setUiMode(btn.getAttribute("data-ui-mode"), true));
     });
-    $("mobileMenuBtn").addEventListener("click", () => {
-      $("sidebar").classList.toggle("open");
+
+    // Sidebar Nav
+    document.querySelectorAll(".nav-item[data-view]").forEach((btn) => {
+      btn.addEventListener("click", () => setView(btn.getAttribute("data-view")));
     });
-    $("topJobPill").addEventListener("click", () => switchView("jobs"));
-    $("quickNewProjectBtn").addEventListener("click", () => {
+
+    // Project Switcher & Quick New
+    $("projectSelect")?.addEventListener("change", (e) => selectProject(e.target.value));
+    $("btnQuickNewProject")?.addEventListener("click", () => {
       if (state.uiMode === "simple") {
-        switchView("simple");
-        $("simpleNewProjectName").focus();
+        setView("simple");
+        setSimpleStep(1);
+        $("simpleProjectName")?.focus();
       } else {
-        switchView("projects");
-        $("newProjectName").focus();
+        setView("projects");
+        $("newProjectName")?.focus();
       }
     });
 
-    document.querySelectorAll("#uiModeSwitcher .mode-btn").forEach((btn) => {
-      btn.addEventListener("click", () => applyUiMode(btn.dataset.uiMode, true));
+    // Topbar
+    $("topbarJobChip")?.addEventListener("click", () => setView("jobs"));
+    $("btnToggleTheme")?.addEventListener("click", () => applyTheme(state.theme === "dark" ? "light" : "dark"));
+    $("btnToggleLang")?.addEventListener("click", () => {
+      state.lang = isZh() ? "en" : "zh";
+      localStorage.setItem("zi2zi_lang", state.lang);
+      applyI18n();
+      bootstrap();
     });
 
-    $("simpleViewLogsBtn").addEventListener("click", () => switchView("jobs"));
+    // Simple Mode Stepper & Sub-tabs
+    document.querySelectorAll("#simpleStepper .stepper-item").forEach((btn) => {
+      btn.addEventListener("click", () => setSimpleStep(btn.getAttribute("data-step")));
+    });
+    document.querySelectorAll("[data-goto-step]").forEach((btn) => {
+      btn.addEventListener("click", () => setSimpleStep(btn.getAttribute("data-goto-step")));
+    });
+    document.querySelectorAll("#simpleActionTabs .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => setSimpleTab(btn.getAttribute("data-simple-tab")));
+    });
+    document.querySelectorAll("#simpleTrainTierGrid .tier-card").forEach((card) => {
+      card.addEventListener("click", () => setSimpleTrainTier(card.getAttribute("data-tier")));
+    });
+    $("btnSimpleViewJobLog")?.addEventListener("click", () => setView("jobs"));
+    $("btnSimpleSwitchAdvanced")?.addEventListener("click", () => setUiMode("advanced", true));
 
-    $("simpleCreateProjectBtn").addEventListener("click", async () => {
-      const name = $("simpleNewProjectName").value.trim();
-      if (!name) {
-        toast(state.lang === "en" ? "Enter a project name." : "请输入项目名称。", "error");
+    // Simple Mode Step 1
+    $("btnSimpleCreateProject")?.addEventListener("click", () => {
+      const inp = $("simpleProjectName");
+      createProjectByName(inp?.value || "").then(() => {
+        if (inp) inp.value = "";
+      });
+    });
+    $("btnSimpleAttachModel")?.addEventListener("click", () => attachSharedModel($("simpleSharedModelSelect")?.value));
+    $("btnSimpleDownloadModel")?.addEventListener("click", () => downloadOfficialModel("hf-mirror", "JiT-B/16"));
+    $("btnSimpleToggleLocalModel")?.addEventListener("click", () => $("simpleLocalModelBox")?.classList.toggle("hidden"));
+    $("btnSimpleImportLocalModel")?.addEventListener("click", () => importModel("base", $("simpleLocalModelFile"), null));
+
+    // Simple Mode Step 2
+    $("btnSimpleSaveAssets")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        toast(isZh() ? "请先在第 1 步创建项目" : "Create a project in Step 1 first", "danger");
         return;
       }
-      try {
-        const res = await api("/api/projects", { method: "POST", body: { name } });
-        $("simpleNewProjectName").value = "";
-        const listData = await api("/api/projects");
-        state.projects = listData.projects || [];
-        await selectProject(res.project.id, false);
-        toast(
-          state.lang === "en"
-            ? `Project "${res.project.name}" created.`
-            : `已创建项目「${res.project.name}」`,
-          "ok"
-        );
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleAttachModelBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const modelPath = $("simpleSharedModelSelect").value;
-      if (!modelPath) {
-        toast(
-          state.lang === "en"
-            ? "No shared model found. Click download below."
-            : "共享库暂无模型，请点击下方「一键下载官方 JiT-B/16」。",
-          "error"
-        );
+      const src = $("simpleSourceFont")?.files?.[0];
+      const tgt = $("simpleTargetFont")?.files?.[0];
+      if (!src && !tgt) {
+        toast(isZh() ? "请先选择源字体与目标字体文件" : "Please select source and target fonts", "danger");
         return;
       }
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/models/attach-shared`,
-          { method: "POST", body: { model_path: modelPath } }
-        );
-        toast(
-          res.validation_job_id
-            ? `已挂载模型，正在校验：${res.validation_job_id.slice(0, 8)}`
-            : state.lang === "en"
-            ? "Base model attached."
-            : "已挂载基础模型。",
-          "ok"
-        );
-        await selectProject(state.activeProjectId, false);
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleDownloadDefaultBtn").addEventListener("click", async () => {
-      try {
-        const res = await api("/api/models/download", {
-          method: "POST",
-          body: { model_name: "JiT-B/16" },
-        });
-        toast(
-          state.lang === "en"
-            ? `Queued JiT-B/16 download: ${res.job_id.slice(0, 8)}`
-            : `已加入 JiT-B/16 下载队列：${res.job_id.slice(0, 8)}`,
-          "ok"
-        );
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleToggleUploadModelBtn").addEventListener("click", () => {
-      $("simpleLocalModelBox").classList.toggle("hidden");
-    });
-
-    $("simpleUploadModelBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const file = $("simpleLocalModelFile").files[0];
-      if (!file) {
-        toast(state.lang === "en" ? "Select a checkpoint file." : "请先选择权重文件。", "error");
-        return;
-      }
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("trusted", $("simpleTrustLocalModel").checked ? "true" : "false");
-      try {
-        await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/models/import`,
-          { method: "POST", body: fd }
-        );
-        $("simpleLocalModelBox").classList.add("hidden");
-        toast(state.lang === "en" ? "Model imported & attached." : "本地模型已导入并挂载。", "ok");
-        await bootstrap();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleSaveAssetsBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
       const fd = new FormData();
       fd.append("input_mode", "font");
-      [...($("simpleSourceFontsInput").files || [])].forEach((f) =>
-        fd.append("source_fonts", f)
-      );
-      [...($("simpleTargetFontInput").files || [])].forEach((f) =>
-        fd.append("target_files", f)
-      );
+      if (src) fd.append("source_fonts", src);
+      if (tgt) fd.append("target_files", tgt);
       try {
-        await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/assets`, {
+        await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/assets`, { method: "POST", body: fd });
+        toast(isZh() ? "字体已保存并提取风格参考" : "Fonts saved and style refs extracted", "ok");
+        await loadProjectDetail(state.activeProjectId);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+
+    // Simple Mode Step 3: Direct Gen & Quick Train
+    $("simpleGenText")?.addEventListener("input", updateSimpleCharCount);
+    $("btnSimpleFillSample")?.addEventListener("click", () => {
+      const ta = $("simpleGenText");
+      if (ta) {
+        ta.value = "永和九年岁在癸丑暮春之初会于会稽山阴之兰亭";
+        updateSimpleCharCount();
+      }
+    });
+    $("btnSimpleClearPresets")?.addEventListener("click", () => {
+      document.querySelectorAll('#simpleQuickPresets input[type="checkbox"]').forEach((cb) => {
+        cb.checked = false;
+        cb.closest(".preset-card")?.classList.remove("checked");
+      });
+      updateSimpleCharCount();
+    });
+    $("btnSimpleStartGen")?.addEventListener("click", async () => {
+      if (!state.activeProjectId || !state.activeProject) {
+        toast(isZh() ? "请先完成前序步骤" : "Complete earlier steps first", "danger");
+        return;
+      }
+      const ckpt = (state.activeProject.generation_checkpoints || [])[0];
+      if (!ckpt) {
+        toast(isZh() ? "请先在第 1 步配置基础模型" : "Configure a base model in Step 1 first", "danger");
+        return;
+      }
+      const text = $("simpleGenText")?.value || "";
+      const presets = getCheckedPresetIds("simpleQuickPresets");
+      if (!uniqueCharsCount(text) && !presets.length) {
+        toast(isZh() ? "请输入文字或勾选至少一个字符集" : "Enter text or select a preset", "danger");
+        return;
+      }
+      const dev = state.devices.find((d) => d.training_supported) || state.devices[0];
+      const fd = new FormData();
+      fd.append("generation_checkpoint", ckpt.path);
+      fd.append("device", dev ? dev.id : "cpu");
+      fd.append("text", text);
+      fd.append("preset_ids", JSON.stringify(presets));
+      fd.append("split_regions", "true");
+      fd.append("primary_region", "SC");
+      fd.append("candidates", "1");
+      fd.append("seed", "42");
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/generation/build`, {
           method: "POST",
           body: fd,
         });
-        toast(
-          state.lang === "en"
-            ? "Fonts saved and style references extracted."
-            : "字体已保存，风格参考池已自动提取。",
-          "ok"
-        );
-        await selectProject(state.activeProjectId, false);
+        toast(isZh() ? `已开始生成字形（任务 ${res.job_id}）` : `Generation queued (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
 
-    document.querySelectorAll("#simpleStep3Tabs .seg-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll("#simpleStep3Tabs .seg-btn").forEach((b) => {
-          b.classList.toggle("active", b === btn);
+    $("btnSimpleBuildDataset")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        toast(isZh() ? "请先创建项目" : "Create a project first", "danger");
+        return;
+      }
+      const cfg = SIMPLE_TIERS[state.simpleTrainTier] || SIMPLE_TIERS.standard;
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/dataset/build`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            charset: "auto",
+            train_count: cfg.train_count,
+            test_count: cfg.test_count,
+            workers: 4,
+          }),
         });
-        document.querySelectorAll(".simple-pane").forEach((p) => {
-          p.classList.toggle("active", p.id === btn.dataset.simpleTab);
+        toast(isZh() ? `已提交数据集构建（${cfg.train_count} 字，任务 ${res.job_id}）` : `Dataset build queued (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+
+    $("btnSimpleStartTrain")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        toast(isZh() ? "请先创建项目" : "Create a project first", "danger");
+        return;
+      }
+      const cfg = SIMPLE_TIERS[state.simpleTrainTier] || SIMPLE_TIERS.standard;
+      const gpu = state.devices.find((d) => d.training_supported);
+      if (!gpu) {
+        toast(isZh() ? "未检测到支持训练的 CUDA GPU" : "No CUDA GPU available for training", "danger");
+        return;
+      }
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/training/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            device: gpu.id,
+            quality: cfg.quality,
+            epochs: cfg.epochs,
+          }),
         });
+        toast(isZh() ? `已开始 LoRA 微调（${cfg.epochs} 轮，任务 ${res.job_id}）` : `Training started (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+
+    // Simple Mode Step 4
+    $("btnSimpleExportFont")?.addEventListener("click", async () => {
+      if (!state.activeProjectId || !state.activeProject) return;
+      const batches = state.activeProject.generation_batches || [];
+      if (!batches.length) {
+        toast(isZh() ? "请先在第 3 步生成字形" : "Generate glyphs in Step 3 first", "danger");
+        return;
+      }
+      const latestPath = state.activeProject.preferred_batch || batches[0].path;
+      const fontName = ($("simpleFontName")?.value || "MyCustomFont").trim();
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/export/build`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            generation_batch: latestPath,
+            family: fontName,
+            style: "Regular",
+            version: "1.000",
+            profiles: ["proportional"],
+            threshold: 180,
+            despeckle: 4,
+          }),
+        });
+        const jid = (res.job_ids && res.job_ids[0]) || res.job_id || "";
+        toast(isZh() ? `已提交 TTF 导出任务 (${jid})` : `TTF export queued (${jid})`, "ok");
+        if (jid) state.selectedJobId = jid;
+        await refreshJobs(false);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+    $("btnSimpleRefreshExport")?.addEventListener("click", loadExportArtifacts);
+
+    // Advanced 01: Projects & Packages
+    $("btnCreateProject")?.addEventListener("click", () => {
+      const inp = $("newProjectName");
+      createProjectByName(inp?.value || "").then(() => {
+        if (inp) inp.value = "";
       });
     });
-
-    $("simpleFillSampleBtn").addEventListener("click", () => {
-      $("simpleGenText").value = "永和九年岁在癸丑暮春之初会于会稽山阴之兰亭";
-      $("simpleGenText").dispatchEvent(new Event("input"));
-    });
-
-    $("simpleGenText").addEventListener("input", () => {
-      const unique = new Set([...$("simpleGenText").value.replace(/\s+/g, "")]);
-      $("simpleCharCounter").textContent =
-        state.lang === "en"
-          ? `${unique.size} unique characters`
-          : `${unique.size} 个去重字符`;
-    });
-
-    $("simpleStartGenBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const presets = [...document.querySelectorAll(".simple-preset-checkbox:checked")].map(
-        (b) => b.value
-      );
-      const text = $("simpleGenText").value;
-      if (!text.trim() && !presets.length) {
-        toast(
-          state.lang === "en"
-            ? "Enter text or select at least one preset."
-            : "请输入想要生成的文字，或勾选至少一个常用字符集。",
-          "error"
-        );
-        return;
-      }
-      const detail = state.projectDetail;
-      const ckpt =
-        (detail && (detail.preferred_checkpoint || detail.manifest.base_model)) || "";
-      const fd = new FormData();
-      fd.append("text", text);
-      fd.append("preset_ids", JSON.stringify(presets));
-      fd.append("split_regions", "false");
-      fd.append("primary_region", "SC");
-      fd.append("device", getDefaultDevice(false));
-      fd.append("generation_checkpoint", ckpt);
-      fd.append("seed", "42");
-      fd.append("candidates", "1");
-      fd.append("allow_large_candidates", "false");
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/generation/build`,
-          { method: "POST", body: fd }
-        );
-        if (res.message) {
-          toast(res.message, "info");
-        } else {
-          toast(
-            state.lang === "en"
-              ? `Queued ${res.generated_count} glyph(s) for generation.`
-              : `已开始生成 ${res.generated_count} 个字形（自动跳过已有 ${res.skipped_existing_count} 字）。`,
-            "ok"
-          );
-          refreshJobs();
-        }
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleBuildDatasetBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const mode = $("simpleTrainPreset").value;
-      const trainCount = mode === "fast" ? 500 : 3000;
-      const testCount = mode === "fast" ? 8 : 64;
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/dataset/build`,
-          {
-            method: "POST",
-            body: {
-              train_count: trainCount,
-              test_count: testCount,
-              charset: "auto",
-              workers: 4,
-            },
-          }
-        );
-        toast(
-          state.lang === "en"
-            ? `Dataset build queued: ${res.job_id.slice(0, 8)}`
-            : `已提交训练数据构建任务：${res.job_id.slice(0, 8)}`,
-          "ok"
-        );
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleStartTrainBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const mode = $("simpleTrainPreset").value;
-      const epochs = mode === "fast" ? 10 : 20;
-      const quality = mode === "fast" ? "economy" : "balanced";
-      const dsPath = (state.projectDetail && state.projectDetail.dataset_path) || "";
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/training/start`,
-          {
-            method: "POST",
-            body: {
-              dataset_path: dsPath,
-              device: getDefaultDevice(true),
-              quality,
-              epochs,
-              horizontal_flip_prob: 0.0,
-            },
-          }
-        );
-        toast(
-          state.lang === "en"
-            ? `LoRA fine-tuning started: ${res.job_id.slice(0, 8)}`
-            : `已启动快速微调任务：${res.job_id.slice(0, 8)}`,
-          "ok"
-        );
-        await selectProject(state.activeProjectId, false);
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleGoMonitorBtn").addEventListener("click", () => {
-      applyUiMode("advanced", false);
-      switchView("monitor");
-    });
-
-    $("simpleBuildFontBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const detail = state.projectDetail;
-      const batch =
-        (detail &&
-          (detail.preferred_batch ||
-            (detail.generation_batches && detail.generation_batches[0]?.path))) ||
-        "";
-      if (!batch) {
-        toast(
-          state.lang === "en"
-            ? "Generate glyphs in Step 3 first."
-            : "请先在第 3 步生成至少一批字形。",
-          "error"
-        );
-        return;
-      }
-      const family = $("simpleExportFamily").value.trim() || "MyCustomFont";
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/export/build`,
-          {
-            method: "POST",
-            body: {
-              generation_batch: batch,
-              family,
-              style: "Regular",
-              version: "1.0",
-              designer: "",
-              license_text: "",
-              profiles: ["proportional"],
-              threshold: 180,
-              despeckle: 4,
-            },
-          }
-        );
-        toast(
-          state.lang === "en"
-            ? `Font build queued (${res.glyph_count} glyphs)`
-            : `已开始合成 TTF 字库（共 ${res.glyph_count} 字）`,
-          "ok"
-        );
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("simpleRefreshArtifactsBtn").addEventListener("click", refreshArtifacts);
-    $("globalProjectSelect").addEventListener("change", (e) => {
-      if (e.target.value) selectProject(e.target.value, true);
-    });
-
-    $("themeToggleBtn").addEventListener("click", () => {
-      state.theme = state.theme === "dark" ? "light" : "dark";
-      applyTheme();
-    });
-    $("langToggleBtn").addEventListener("click", async () => {
-      state.lang = state.lang === "en" ? "zh" : "en";
-      applyLanguage();
-      await bootstrap();
-    });
-
-    $("closeModalBtn").addEventListener("click", () => $("imageModal").classList.add("hidden"));
-    $("imageModal").addEventListener("click", (e) => {
-      if (e.target === $("imageModal")) $("imageModal").classList.add("hidden");
-    });
-
-    $("createProjectBtn").addEventListener("click", async () => {
-      const name = $("newProjectName").value.trim();
-      if (!name) {
-        toast(state.lang === "en" ? "Enter a project name." : "请输入项目名称。", "error");
-        return;
-      }
-      try {
-        const res = await api("/api/projects", { method: "POST", body: { name } });
-        $("newProjectName").value = "";
-        const listData = await api("/api/projects");
-        state.projects = listData.projects || [];
-        await selectProject(res.project.id, false);
-        toast(
-          state.lang === "en"
-            ? `Project "${res.project.name}" created.`
-            : `已创建项目「${res.project.name}」`,
-          "ok"
-        );
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("refreshProjectsBtn").addEventListener("click", bootstrap);
-
-    $("deleteProjectBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const confirmed = $("confirmDeleteProject").checked;
-      if (!confirmed) {
-        toast(
-          state.lang === "en"
-            ? "Check the confirmation box first."
-            : "请先勾选确认删除复选框。",
-          "error"
-        );
+    $("btnDeleteProject")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
+      const confirmVal = $("deleteConfirmInput")?.value.trim() || "";
+      const cur = getManifest(state.activeProject);
+      if (!confirmVal || (cur && confirmVal !== cur.name && confirmVal !== cur.id)) {
+        toast(isZh() ? "请输入当前项目名称或 ID 以确认删除" : "Enter active project name or ID to confirm", "danger");
         return;
       }
       try {
         await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}`, {
           method: "DELETE",
-          body: { confirmed: true },
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirmed: true }),
         });
-        $("confirmDeleteProject").checked = false;
+        toast(isZh() ? "项目已删除" : "Project deleted", "ok");
+        if ($("deleteConfirmInput")) $("deleteConfirmInput").value = "";
         state.activeProjectId = "";
-        toast(state.lang === "en" ? "Project deleted." : "项目已永久删除。", "ok");
         await bootstrap();
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
-
-    $("exportPackageBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
+    $("btnRefreshPackages")?.addEventListener("click", bootstrap);
+    $("btnExportPackage")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
       try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/export`,
-          {
-            method: "POST",
-            body: {
-              mode: $("exportPackageMode").value,
-              include_shared_models: $("exportIncludeShared").checked,
-            },
-          }
-        );
-        toast(`Export job queued: ${res.job_id.slice(0, 8)}`, "ok");
-        refreshJobs();
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/export`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: $("pkgIncDataset")?.checked || $("pkgIncGen")?.checked ? "full" : "lightweight",
+            include_shared_models: Boolean($("pkgIncBase")?.checked),
+          }),
+        });
+        const out = $("exportPackageResult");
+        if (out) {
+          out.textContent = isZh() ? `已排队导出任务 ${res.job_id}` : `Export job queued: ${res.job_id}`;
+        }
+        toast(isZh() ? `项目包导出已排队 (${res.job_id})` : `Package export queued (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
-
-    $("inspectPackageBtn").addEventListener("click", async () => {
-      const file = $("importPackageFile").files[0];
+    $("btnInspectPackage")?.addEventListener("click", async () => {
+      const file = $("packageUploadInput")?.files?.[0];
       if (!file) {
-        toast(state.lang === "en" ? "Select a .zip file first." : "请先选择 .zip 文件。", "error");
+        toast(isZh() ? "请先选择一个 .zip 项目包文件" : "Please choose a .zip package file", "danger");
         return;
       }
       const fd = new FormData();
       fd.append("file", file);
       try {
         const res = await api("/api/project-packages/inspect", { method: "POST", body: fd });
-        state.stagedImportPath = res.staged_path;
-        const info = res.inspection;
-        $("packageInspectionBox").textContent =
-          `Project: ${info.project_name || "?"} (${info.mode || "?"})\n` +
-          `Files: ${info.file_count ?? "?"} | Runs: ${info.training_run_count ?? 0}\n` +
-          `Warnings: ${(info.warnings || []).join("; ") || "None"}`;
-        $("packageInspectionBox").classList.remove("hidden");
-        $("confirmImportRow").classList.remove("hidden");
-        $("confirmImportPackage").checked = false;
-        toast(state.lang === "en" ? "Package verified." : "项目包预检通过。", "ok");
+        state.stagedPackagePath = res.staged_path || "";
+        const box = $("packageInspectResult");
+        if (box) {
+          box.textContent = JSON.stringify(res.inspection || res, null, 2);
+          box.classList.remove("hidden");
+        }
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
-
-    $("importPackageBtn").addEventListener("click", async () => {
-      if (!state.stagedImportPath) return;
-      if (!$("confirmImportPackage").checked) {
-        toast(state.lang === "en" ? "Confirm import first." : "请先勾选确认导入。", "error");
+    $("btnImportPackage")?.addEventListener("click", async () => {
+      const stagedPath = state.stagedPackagePath || $("existingPackageSelect")?.value || "";
+      if (!stagedPath) {
+        toast(isZh() ? "请先校验上传的项目包或选择已有项目包" : "Inspect an uploaded package or select an existing one", "danger");
         return;
       }
       try {
         const res = await api("/api/project-packages/import", {
           method: "POST",
-          body: { staged_path: state.stagedImportPath, confirmed: true },
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ staged_path: stagedPath, confirmed: true }),
         });
-        state.stagedImportPath = "";
-        $("packageInspectionBox").classList.add("hidden");
-        $("confirmImportRow").classList.add("hidden");
-        toast(`Import job queued: ${res.job_id.slice(0, 8)}`, "ok");
-        refreshJobs();
+        toast(isZh() ? `项目导入任务已提交 (${res.job_id})` : `Import queued (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
 
-    $("downloadOfficialBtn").addEventListener("click", async () => {
-      try {
-        const res = await api("/api/models/download", {
-          method: "POST",
-          body: { model_name: $("officialModelSelect").value },
-        });
-        toast(`Download queued: ${res.job_id.slice(0, 8)}`, "ok");
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
+    // Advanced 02: Assets & Models
+    document.querySelectorAll("#inputModeGroup .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => setInputMode(btn.getAttribute("data-mode")));
     });
-
-    $("refreshSharedModelsBtn").addEventListener("click", async () => {
-      const data = await api("/api/models/shared");
-      state.sharedModels = data.models || [];
-      renderSharedModels();
-      toast(state.lang === "en" ? "Refreshed." : "已刷新共享模型列表。", "info");
-    });
-
-    $("attachSharedModelBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const modelPath = $("sharedModelSelect").value;
-      if (!modelPath) {
-        toast(state.lang === "en" ? "No model selected." : "请先选择一个共享模型。", "error");
-        return;
-      }
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/models/attach-shared`,
-          { method: "POST", body: { model_path: modelPath } }
-        );
-        toast(
-          res.validation_job_id
-            ? `Model attached. Validation queued: ${res.validation_job_id.slice(0, 8)}`
-            : state.lang === "en"
-            ? "Base model attached."
-            : "已挂载基础模型。",
-          "ok"
-        );
-        await selectProject(state.activeProjectId, false);
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("uploadLocalModelBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const file = $("localModelFile").files[0];
-      if (!file) {
-        toast(state.lang === "en" ? "Select a checkpoint file." : "请先选择权重文件。", "error");
+    $("btnRefreshModels")?.addEventListener("click", bootstrap);
+    $("btnAttachSharedModel")?.addEventListener("click", () => attachSharedModel($("sharedModelSelect")?.value));
+    $("btnDownloadModel")?.addEventListener("click", () =>
+      downloadOfficialModel($("downloadSourceSelect")?.value, $("downloadVariantSelect")?.value)
+    );
+    $("btnImportBaseModel")?.addEventListener("click", () => importModel("base", $("importModelFile"), $("importModelPath")));
+    $("btnImportResumeModel")?.addEventListener("click", () => importModel("resume", $("importModelFile"), $("importModelPath")));
+    $("btnSaveAssets")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        toast(isZh() ? "请先创建或选择项目" : "Select a project first", "danger");
         return;
       }
       const fd = new FormData();
-      fd.append("file", file);
-      fd.append("trusted", $("trustLocalModel").checked ? "true" : "false");
+      fd.append("input_mode", state.inputMode === "glyph_images" ? "glyphs" : "font");
+      const appendFiles = (id, field) => {
+        const files = $(id)?.files || [];
+        for (const f of files) fd.append(field, f);
+      };
+      appendFiles("sourceFontsInput", "source_fonts");
+      appendFiles("targetFontInput", "target_files");
+      appendFiles("targetImagesInput", "target_files");
+      appendFiles("sourceScInput", "sc_fonts");
+      appendFiles("sourceTcInput", "tc_fonts");
+      appendFiles("sourceJpInput", "jp_fonts");
+      appendFiles("sourceKrInput", "kr_fonts");
       try {
-        await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/models/import`,
-          { method: "POST", body: fd }
-        );
-        toast(state.lang === "en" ? "Model imported & attached." : "本地模型导入并挂载成功。", "ok");
-        await bootstrap();
+        await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/assets`, { method: "POST", body: fd });
+        toast(isZh() ? "素材已保存" : "Assets saved", "ok");
+        await loadProjectDetail(state.activeProjectId);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
 
-    document.querySelectorAll("#inputModeSwitch .seg-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        state.inputMode = btn.dataset.mode;
-        document.querySelectorAll("#inputModeSwitch .seg-btn").forEach((b) => {
-          b.classList.toggle("active", b === btn);
-        });
-        updateInputModeLabels();
+    // Advanced 03: Dataset & Training
+    document.querySelectorAll("[data-ds-preset]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const name = btn.getAttribute("data-ds-preset");
+        try {
+          const data = await api(`/api/dataset/preset/${encodeURIComponent(name)}`);
+          if ($("dsTrainCount")) $("dsTrainCount").value = data.train_count;
+          if ($("dsTestCount")) $("dsTestCount").value = data.test_count;
+        } catch (err) {
+          toast(err.message, "danger");
+        }
       });
     });
-
-    $("saveAssetsBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const fd = new FormData();
-      fd.append("input_mode", state.inputMode);
-      const appendFiles = (field, inputId) => {
-        [...($(inputId).files || [])].forEach((f) => fd.append(field, f));
-      };
-      appendFiles("source_fonts", "sourceFontsInput");
-      appendFiles("target_files", "targetAssetsInput");
-      appendFiles("sc_fonts", "scFontsInput");
-      appendFiles("tc_fonts", "tcFontsInput");
-      appendFiles("jp_fonts", "jpFontsInput");
-      appendFiles("kr_fonts", "krFontsInput");
+    $("btnCheckCapacity")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
+      const charset = $("dsCharset")?.value || "auto";
       try {
-        await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/assets`, {
+        const data = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/dataset/capacity`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ charset, test_count: Number($("dsTestCount")?.value || 64) }),
+        });
+        const el = $("capacityResult");
+        if (el) el.textContent = isZh()
+          ? `当前字集 (${charset}) 可用配对字数：${data.capacity}（最大训练 ${data.max_train}）`
+          : `Available (${charset}): ${data.capacity} (max train ${data.max_train})`;
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+    $("btnBuildDataset")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/dataset/build`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            charset: $("dsCharset")?.value || "auto",
+            train_count: Number($("dsTrainCount")?.value || 3000),
+            test_count: Number($("dsTestCount")?.value || 64),
+            workers: 4,
+          }),
+        });
+        toast(isZh() ? `数据集构建任务已提交 (${res.job_id})` : `Dataset job queued (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+    $("btnStartTraining")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
+      const payload = {
+        dataset_path: $("trainDatasetPath")?.value.trim() || "",
+        device: $("trainDeviceSelect")?.value || "0",
+        quality: $("trainQualitySelect")?.value || "balanced",
+        epochs: Number($("trainEpochs")?.value || 20),
+        horizontal_flip_prob: 0.0,
+      };
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/training/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        toast(isZh() ? `训练已启动 (${res.job_id})` : `Training started (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+    $("btnResumeTraining")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
+      const runId = $("resumeRunSelect")?.value || "";
+      if (!runId) {
+        toast(isZh() ? "请选择要续训的轮次" : "Select a run to resume", "danger");
+        return;
+      }
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/training/resume`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            run_id: runId,
+            dataset_path: $("trainDatasetPath")?.value.trim() || "",
+            device: $("trainDeviceSelect")?.value || "0",
+            epochs: Number($("resumeExtraEpochs")?.value || 200),
+            horizontal_flip_prob: 0.0,
+          }),
+        });
+        toast(isZh() ? `续训已启动 (${res.job_id})` : `Resume queued (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+    $("btnDeleteRun")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
+      const runId = $("resumeRunSelect")?.value || "";
+      if (!runId) return;
+      try {
+        await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/training/runs/${encodeURIComponent(runId)}`, {
+          method: "DELETE",
+        });
+        toast(isZh() ? `已删除训练记录 ${runId}` : `Deleted run ${runId}`, "ok");
+        await loadProjectDetail(state.activeProjectId);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    });
+
+    // Advanced 04: Monitor
+    $("btnRefreshMonitor")?.addEventListener("click", loadMonitorDashboard);
+    const exportMetrics = async (fmt) => {
+      if (!state.activeProjectId) return;
+      const runId = state.selectedRunIds[0];
+      if (!runId) {
+        toast(isZh() ? "请先选择一个训练运行" : "Select a training run first", "danger");
+        return;
+      }
+      try {
+        const data = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/training/export-metrics`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: runId }),
+        });
+        const target = (data.files || []).find((f) => String(f.name || "").endsWith(`.${fmt}`)) || (data.files || [])[0];
+        if (target && target.url) window.open(target.url, "_blank");
+        else toast(isZh() ? "已导出指标文件" : "Metrics exported", "ok");
+      } catch (err) {
+        toast(err.message, "danger");
+      }
+    };
+    $("btnExportMetricsCsv")?.addEventListener("click", () => exportMetrics("csv"));
+    $("btnExportMetricsJson")?.addEventListener("click", () => exportMetrics("json"));
+
+    // Advanced 05: Generation
+    $("genText")?.addEventListener("input", updateGenCharCount);
+    $("btnGenFillSample")?.addEventListener("click", () => {
+      const ta = $("genText");
+      if (ta) {
+        ta.value = "永和九年岁在癸丑暮春之初会于会稽山阴之兰亭";
+        updateGenCharCount();
+      }
+    });
+    $("btnGenClearPresets")?.addEventListener("click", () => {
+      document.querySelectorAll('#genPrimaryPresets input[type="checkbox"], #genExtraPresets input[type="checkbox"]').forEach((cb) => {
+        cb.checked = false;
+        cb.closest(".preset-card")?.classList.remove("checked");
+      });
+      updateGenCharCount();
+    });
+    $("btnStartGeneration")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) {
+        toast(isZh() ? "请先选择项目" : "Select a project first", "danger");
+        return;
+      }
+      const ckpt = $("genCheckpointSelect")?.value || "";
+      if (!ckpt) {
+        toast(isZh() ? "请先选择推理权重" : "Select a checkpoint", "danger");
+        return;
+      }
+      const fd = new FormData();
+      fd.append("generation_checkpoint", ckpt);
+      fd.append("device", $("genDeviceSelect")?.value || "0");
+      fd.append("text", $("genText")?.value || "");
+      const presets = [...getCheckedPresetIds("genPrimaryPresets"), ...getCheckedPresetIds("genExtraPresets")];
+      fd.append("preset_ids", JSON.stringify(presets));
+      const regionVal = $("genRegionSelect")?.value || "SC";
+      fd.append("split_regions", "true");
+      fd.append("primary_region", ["SC", "TC", "JP", "KR"].includes(regionVal) ? regionVal : "SC");
+      fd.append("candidates", $("genCandidates")?.value || "1");
+      fd.append("seed", $("genSeed")?.value || "42");
+      const file = $("genCharsetFile")?.files?.[0];
+      if (file) fd.append("custom_file", file);
+      try {
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/generation/build`, {
           method: "POST",
           body: fd,
         });
-        toast(
-          state.lang === "en"
-            ? "Assets saved and style reference pool updated."
-            : "素材已保存并构建风格参考池。",
-          "ok"
-        );
-        await selectProject(state.activeProjectId, false);
+        toast(isZh() ? `生成任务已提交 (${res.job_id})` : `Generation queued (${res.job_id})`, "ok");
+        state.selectedJobId = res.job_id;
+        await refreshJobs(false);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
 
-    document.querySelectorAll(".dataset-preset-btn").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        try {
-          const res = await api(`/api/dataset/preset/${encodeURIComponent(btn.dataset.preset)}`);
-          $("datasetTrainCount").value = res.train_count;
-          $("datasetTestCount").value = res.test_count;
-        } catch (err) {
-          toast(err.message, "error");
-        }
-      });
+    // Advanced 06: Review & Export
+    document.querySelectorAll("#reviewExportTabs .seg-btn").forEach((btn) => {
+      btn.addEventListener("click", () => setReviewSubtab(btn.getAttribute("data-subtab")));
     });
-
-    $("checkCapacityBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/dataset/capacity`,
-          {
-            method: "POST",
-            body: {
-              charset: $("datasetCharset").value,
-              test_count: Number($("datasetTestCount").value || 64),
-            },
-          }
-        );
-        $("datasetCapacityInfo").textContent =
-          state.lang === "en"
-            ? `Usable common glyphs: ${res.capacity} (max train: ${res.max_train})`
-            : `检测到公共可用字数：${res.capacity}（扣除验证集后最多可训练 ${res.max_train} 字）`;
-      } catch (err) {
-        toast(err.message, "error");
+    $("btnRefreshReview")?.addEventListener("click", () => {
+      loadReviewPage();
+      loadExportArtifacts();
+    });
+    $("reviewBatchSelect")?.addEventListener("change", () => {
+      state.reviewPage = 1;
+      loadReviewPage();
+    });
+    $("reviewQueryInput")?.addEventListener("input", () => {
+      state.reviewPage = 1;
+      loadReviewPage();
+    });
+    $("reviewFilterSelect")?.addEventListener("change", () => {
+      state.reviewPage = 1;
+      loadReviewPage();
+    });
+    $("btnReviewPrev")?.addEventListener("click", () => {
+      if (state.reviewPage > 1) {
+        state.reviewPage -= 1;
+        loadReviewPage();
       }
     });
-
-    $("buildDatasetBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/dataset/build`,
-          {
-            method: "POST",
-            body: {
-              train_count: Number($("datasetTrainCount").value),
-              test_count: Number($("datasetTestCount").value),
-              charset: $("datasetCharset").value,
-              workers: Number($("datasetWorkers").value || 4),
-            },
-          }
-        );
-        $("trainDatasetPath").value = res.dataset_path;
-        $("datasetCapacityInfo").textContent = `Dataset job ${res.job_id.slice(
-          0,
-          8
-        )} queued -> ${res.dataset_path}`;
-        toast(`Dataset job queued: ${res.job_id.slice(0, 8)}`, "ok");
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
+    $("btnReviewNext")?.addEventListener("click", () => {
+      if (state.reviewPage < state.reviewTotalPages) {
+        state.reviewPage += 1;
+        loadReviewPage();
       }
     });
-
-    $("startTrainingBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/training/start`,
-          {
-            method: "POST",
-            body: {
-              dataset_path: $("trainDatasetPath").value.trim(),
-              device: $("trainDevice").value,
-              quality: $("trainQuality").value,
-              epochs: Number($("trainEpochs").value),
-              horizontal_flip_prob: Number($("trainHflip").value || 0),
-            },
-          }
-        );
-        toast(`Training started (${res.architecture}): ${res.job_id.slice(0, 8)}`, "ok");
-        await selectProject(state.activeProjectId, false);
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("resumeRunBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const runId = $("manageRunSelect").value;
-      if (!runId) {
-        toast(state.lang === "en" ? "Select a run first." : "请先选择训练记录。", "error");
-        return;
-      }
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/training/resume`,
-          {
-            method: "POST",
-            body: {
-              run_id: runId,
-              dataset_path: $("trainDatasetPath").value.trim(),
-              device: $("trainDevice").value,
-              epochs: Number($("trainEpochs").value),
-              horizontal_flip_prob: Number($("trainHflip").value || 0),
-            },
-          }
-        );
-        toast(`Resumed as ${res.run_id.slice(0, 8)}`, "ok");
-        await selectProject(state.activeProjectId, false);
-        refreshJobs();
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("deleteRunBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const runId = $("manageRunSelect").value;
-      if (!runId) return;
-      if (!$("confirmDeleteRun").checked) {
-        toast(state.lang === "en" ? "Check confirmation first." : "请先勾选确认删除。", "error");
-        return;
-      }
-      try {
-        await api(
-          `/api/projects/${encodeURIComponent(
-            state.activeProjectId
-          )}/training/runs/${encodeURIComponent(runId)}?confirmed=true`,
-          { method: "DELETE" }
-        );
-        $("confirmDeleteRun").checked = false;
-        toast(state.lang === "en" ? "Run deleted." : "已删除该训练记录。", "ok");
-        await selectProject(state.activeProjectId, false);
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("refreshMonitorBtn").addEventListener("click", refreshDashboard);
-    $("exportMetricsBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const runId = state.selectedRunIds[0];
-      if (!runId) {
-        toast(state.lang === "en" ? "Select at least one run." : "请先勾选一个训练记录。", "error");
-        return;
-      }
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/training/export-metrics`,
-          { method: "POST", body: { run_id: runId } }
-        );
-        $("monitorExportFiles").innerHTML = (res.files || [])
-          .map(
-            (f) => `
-          <div class="file-item">
-            <span class="mono">${escapeHtml(f.name)}</span>
-            <a href="${escapeHtml(f.url)}" download="${escapeHtml(f.name)}">${
-              state.lang === "en" ? "Download" : "下载"
-            }</a>
-          </div>`
-          )
-          .join("");
-        toast(state.lang === "en" ? "Metrics exported." : "指标与图表已导出。", "ok");
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    $("genCustomText").addEventListener("input", () => {
-      const unique = new Set([...$("genCustomText").value.replace(/\s+/g, "")]);
-      $("genCharCounter").textContent =
-        state.lang === "en"
-          ? `${unique.size} unique characters`
-          : `${unique.size} 个去重字符`;
-    });
-
-    $("submitGenerationBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const presets = [...document.querySelectorAll(".preset-checkbox:checked")].map(
-        (b) => b.value
-      );
-      const fd = new FormData();
-      fd.append("text", $("genCustomText").value);
-      fd.append("preset_ids", JSON.stringify(presets));
-      fd.append("split_regions", $("genSplitRegions").checked ? "true" : "false");
-      fd.append("primary_region", $("genPrimaryRegion").value);
-      fd.append("device", $("genDeviceSelect").value);
-      fd.append("generation_checkpoint", $("genCheckpointSelect").value);
-      fd.append("seed", String($("genSeed").value || 42));
-      fd.append("candidates", String($("genCandidates").value || 1));
-      fd.append("allow_large_candidates", $("genUnlockCandidates").checked ? "true" : "false");
-      const customFile = $("genCustomFile").files[0];
-      if (customFile) fd.append("custom_file", customFile);
-
-      try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/generation/build`,
-          { method: "POST", body: fd }
-        );
-        if (res.message) {
-          $("generationResultStrip").textContent = res.message;
-          toast(res.message, "info");
-        } else {
-          const msg =
-            state.lang === "en"
-              ? `Queued ${res.job_ids.length} job(s) for ${res.generated_count} glyphs (skipped ${res.skipped_existing_count} existing).`
-              : `已提交 ${res.job_ids.length} 个生成任务，共 ${res.generated_count} 字（自动跳过已有 ${res.skipped_existing_count} 字）。`;
-          $("generationResultStrip").textContent = msg;
-          toast(msg, "ok");
-          refreshJobs();
-        }
-      } catch (err) {
-        toast(err.message, "error");
-      }
-    });
-
-    document.querySelectorAll("#reviewSubTabs .seg-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll("#reviewSubTabs .seg-btn").forEach((b) => {
-          b.classList.toggle("active", b === btn);
-        });
-        document.querySelectorAll(".subtab-panel").forEach((panel) => {
-          panel.classList.toggle("active", panel.id === btn.dataset.subtab);
-        });
-        if (btn.dataset.subtab === "export-panel") refreshArtifacts();
-      });
-    });
-
-    $("reviewRefreshBtn").addEventListener("click", () => loadReviewPage(1));
-    $("reviewBatchSelect").addEventListener("change", () => loadReviewPage(1));
-    $("reviewSearchInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") loadReviewPage(1);
-    });
-    $("reviewPrevPage").addEventListener("click", () => {
-      if (state.reviewPage > 1) loadReviewPage(state.reviewPage - 1);
-    });
-    $("reviewNextPage").addEventListener("click", () => {
-      if (state.reviewPage < state.reviewTotalPages) loadReviewPage(state.reviewPage + 1);
-    });
-
-    $("specimenSizeRange").addEventListener("input", (e) => {
+    $("specimenSizeRange")?.addEventListener("input", (e) => {
       const sz = `${e.target.value}px`;
-      $("specimenSizeVal").textContent = sz;
-      $("specimenTextarea").style.fontSize = sz;
+      if ($("specimenSizeLabel")) $("specimenSizeLabel").textContent = sz;
+      if ($("specimenInput")) $("specimenInput").style.fontSize = sz;
     });
-
-    $("buildFontBtn").addEventListener("click", async () => {
-      if (!requireProject()) return;
-      const profiles = [];
-      if ($("profileProportional").checked) profiles.push("proportional");
-      if ($("profileMono").checked) profiles.push("monospace-2to1");
-      if (!profiles.length) {
-        toast(state.lang === "en" ? "Select at least one profile." : "请至少选择一个排版规格。", "error");
+    $("btnRefreshArtifacts")?.addEventListener("click", loadExportArtifacts);
+    $("btnStartExport")?.addEventListener("click", async () => {
+      if (!state.activeProjectId) return;
+      const batchPath = $("exportBatchSelect")?.value || "";
+      if (!batchPath) {
+        toast(isZh() ? "请选择生成批次" : "Select a generation batch", "danger");
         return;
       }
       try {
-        const res = await api(
-          `/api/projects/${encodeURIComponent(state.activeProjectId)}/export/build`,
-          {
-            method: "POST",
-            body: {
-              generation_batch: $("exportBatchSelect").value,
-              family: $("exportFamily").value.trim(),
-              style: $("exportStyle").value.trim(),
-              version: $("exportVersion").value.trim(),
-              designer: $("exportDesigner").value.trim(),
-              license_text: $("exportLicense").value.trim(),
-              profiles,
-              threshold: Number($("exportThreshold").value || 180),
-              despeckle: Number($("exportDespeckle").value || 4),
-            },
-          }
-        );
-        toast(`Font build queued (${res.glyph_count} glyphs)`, "ok");
-        refreshJobs();
+        const res = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/export/build`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            generation_batch: batchPath,
+            family: ($("exportFontName")?.value || "MyCustomFont").trim(),
+            style: "Regular",
+            version: "1.000",
+            profiles: ["proportional"],
+            threshold: Number($("exportThreshold")?.value || 180),
+            despeckle: Number($("exportTurdsize")?.value || 4),
+          }),
+        });
+        const jid = (res.job_ids && res.job_ids[0]) || res.job_id || "";
+        toast(isZh() ? `导出任务已提交 (${jid})` : `Export queued (${jid})`, "ok");
+        if (jid) state.selectedJobId = jid;
+        await refreshJobs(false);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
 
-    $("refreshArtifactsBtn").addEventListener("click", refreshArtifacts);
-
-    $("refreshJobsBtn").addEventListener("click", refreshJobs);
-    $("jobsOnlyCurrentProject").addEventListener("change", refreshJobs);
-    $("cancelJobBtn").addEventListener("click", async () => {
+    // Jobs Queue
+    $("btnRefreshJobs")?.addEventListener("click", () => refreshJobs(true));
+    $("btnCancelJob")?.addEventListener("click", async () => {
       if (!state.selectedJobId) return;
       try {
-        await api(`/api/jobs/${encodeURIComponent(state.selectedJobId)}/cancel`, {
-          method: "POST",
-        });
-        toast(state.lang === "en" ? "Cancel requested." : "已发送取消请求。", "info");
-        refreshJobs();
+        await api(`/api/jobs/${encodeURIComponent(state.selectedJobId)}/cancel`, { method: "POST" });
+        toast(isZh() ? "已请求取消任务" : "Cancel requested", "ok");
+        await refreshJobs(true);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
-    $("retryJobBtn").addEventListener("click", async () => {
+    $("btnRetryJob")?.addEventListener("click", async () => {
       if (!state.selectedJobId) return;
       try {
-        const res = await api(`/api/jobs/${encodeURIComponent(state.selectedJobId)}/retry`, {
-          method: "POST",
-        });
-        toast(`Retried as ${res.new_job_id.slice(0, 8)}`, "ok");
-        state.selectedJobId = res.new_job_id;
-        refreshJobs();
+        const res = await api(`/api/jobs/${encodeURIComponent(state.selectedJobId)}/retry`, { method: "POST" });
+        toast(isZh() ? `已重新排队 (${res.job_id || state.selectedJobId})` : "Job retried", "ok");
+        if (res.job_id) state.selectedJobId = res.job_id;
+        await refreshJobs(true);
       } catch (err) {
-        toast(err.message, "error");
+        toast(err.message, "danger");
       }
     });
   }
 
-  async function init() {
-    applyLanguage();
-    applyUiMode(state.uiMode, true);
-    setupDropzones();
+  function init() {
+    applyTheme(state.theme);
+    applyI18n();
+    bindDropzones();
     bindEvents();
-    await bootstrap();
-    state.pollTimer = setInterval(refreshJobs, 3000);
+    setUiMode(state.uiMode, true);
+    setSimpleStep(1);
+    setSimpleTab("generate");
+    setSimpleTrainTier("standard");
+    bootstrap();
+    setInterval(() => {
+      refreshJobs(state.view === "jobs");
+      if (state.view === "monitor") {
+        const hasRunning = (state.jobs || []).some((j) => j.status === "running" && j.kind === "train_lora");
+        if (hasRunning) loadMonitorDashboard();
+      }
+    }, 4000);
   }
 
   document.addEventListener("DOMContentLoaded", init);
