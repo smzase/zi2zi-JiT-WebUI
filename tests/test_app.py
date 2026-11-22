@@ -247,3 +247,52 @@ def test_review_selection_and_training_dashboard_endpoints(tmp_path):
         assert del_denied.status_code == 400
     finally:
         jobs.stop()
+
+
+def test_export_artifacts_svg_sampling_cache_headers_and_specimen_url(tmp_path):
+    storage = Storage(tmp_path)
+    jobs = JobManager(storage)
+    try:
+        project = storage.create_project("ExportPerfProj")
+        pdir = storage.project_dir(project.id)
+        fonts_dir = pdir / "fonts"
+        fonts_dir.mkdir(parents=True, exist_ok=True)
+        ttf_path = fonts_dir / "Demo-Text-1.000.ttf"
+        ttf_path.write_bytes(b"fake-ttf")
+        svg_dir = fonts_dir / "Demo-Text-1.000" / "svg"
+        svg_dir.mkdir(parents=True, exist_ok=True)
+        for index in range(120):
+            (svg_dir / f"U+{0x4E00 + index:04X}.svg").write_text(
+                "<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8"
+            )
+
+        app = build_app(storage, jobs, language="en")
+        client = TestClient(app)
+
+        resp = client.get(
+            f"/api/projects/{project.id}/export/artifacts",
+            params={"svg_limit": 24},
+        )
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["svg_total"] == 120
+        assert len(payload["svgs"]) == 24
+        assert payload["preview_font_name"] == "Demo-Text-1.000.ttf"
+        assert payload["preview_font_version"]
+
+        # Unversioned and versioned /api/files URLs both succeed with Cache-Control headers
+        preview_url = payload["preview_font_url"]
+        r_plain = client.get(preview_url)
+        assert r_plain.status_code == 200
+        assert "max-age=300" in r_plain.headers.get("cache-control", "")
+
+        version = payload["preview_font_version"]
+        r_ver = client.get(f"{preview_url}&v={version}")
+        assert r_ver.status_code == 200
+        assert "immutable" in r_ver.headers.get("cache-control", "")
+
+        # Ensure frontend does not regress to broken `?t=` query concatenation on `/api/files?path=...`
+        js_text = client.get("/static/app.js").text
+        assert "${url}?t=" not in js_text
+    finally:
+        jobs.stop()

@@ -6,10 +6,12 @@ from pathlib import Path
 from zi2zi_webui.generation_batches import (
     batch_choices,
     candidates_for_codepoint,
+    clear_batch_caches,
     list_generation_batches,
     load_and_prune_selections,
     preferred_generation_batch,
     review_page,
+    review_page_details,
     scan_generation_batch,
 )
 
@@ -157,3 +159,39 @@ def test_invalid_manual_selections_are_pruned(tmp_path):
 
     assert load_and_prune_selections(manifest) == {"U+4E00": str(valid)}
     assert "U+4E01" not in manifest.read_text(encoding="utf-8")
+
+
+def test_batch_scan_cache_hits_and_invalidates_on_file_change(tmp_path):
+    clear_batch_caches()
+    generation = tmp_path / "generation"
+    generation.mkdir()
+    batch = _request_batch(generation, "cached", regions=("SC",))
+    generated = batch / "SC" / "run" / "generated"
+
+    # Age directory mtime past racy window so cache can become eligible
+    past = time.time_ns() - 5_000_000_000
+    os.utime(batch, ns=(past, past))
+    os.utime(batch / "SC", ns=(past, past))
+    os.utime(batch / "SC" / "run", ns=(past, past))
+    os.utime(generated, ns=(past, past))
+
+    first = scan_generation_batch(batch, primary_region="SC")
+    assert set(first) == {0x4E00}
+
+    # Warm hit returns same result
+    images, codepoints, page, total_pages, total_items = review_page_details(
+        batch, primary_region="SC", page=1, page_size=48
+    )
+    assert codepoints == [0x4E00]
+    assert (page, total_pages, total_items) == (1, 1, 1)
+    assert len(images) == 1
+
+    # Adding a file updates directory mtime and invalidates cache
+    added = generated / "0001_U+4E01.png"
+    added.touch()
+    later = time.time_ns() - 2_000_000_000
+    os.utime(generated, ns=(later, later))
+
+    second = scan_generation_batch(batch, primary_region="SC")
+    assert set(second) == {0x4E00, 0x4E01}
+    assert candidates_for_codepoint(batch, 0x4E01) == [added.resolve()]

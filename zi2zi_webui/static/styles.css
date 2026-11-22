@@ -1729,6 +1729,13 @@ body[data-ui-mode="advanced"] .nav-simple {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
   gap: 8px;
+  transition: opacity 0.12s ease;
+}
+
+.glyph-grid.is-loading,
+.candidate-list.is-loading {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .glyph-cell {
@@ -1740,6 +1747,7 @@ body[data-ui-mode="advanced"] .nav-simple {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
+  contain: layout style paint;
   cursor: pointer;
 }
 
@@ -1877,6 +1885,7 @@ body[data-ui-mode="advanced"] .nav-simple {
   border-radius: var(--radius-sm);
   background: #ffffff;
   text-align: center;
+  contain: layout style paint;
 }
 
 .svg-card img {

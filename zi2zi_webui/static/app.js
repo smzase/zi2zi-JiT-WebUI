@@ -464,7 +464,18 @@
     reviewPage: 1,
     reviewTotalPages: 1,
     selectedReviewChar: "",
+    activeReviewBatch: "",
     loadedSpecimenFont: "",
+    loadedSpecimenKey: "",
+    loadedSpecimenFace: null,
+    reviewPageAbort: null,
+    reviewPageSeq: 0,
+    reviewCandAbort: null,
+    reviewCandSeq: 0,
+    reviewSearchTimer: null,
+    reviewSearchComposing: false,
+    exportArtifactsAbort: null,
+    exportArtifactsSeq: 0,
     activeJobsHadRunning: false,
     tensorboardUrl: "http://127.0.0.1:6006",
   };
@@ -697,13 +708,13 @@
     updatePageHeader();
     if (viewName === "monitor") loadMonitorDashboard();
     if (viewName === "review") {
-      loadReviewPage();
-      loadExportArtifacts();
+      if (state.reviewSubtab === "export") loadExportArtifacts();
+      else loadReviewPage();
     }
     if (viewName === "jobs") refreshJobs(true);
     if (viewName === "simple") {
       renderSimpleWorkbench();
-      loadExportArtifacts();
+      if (state.simpleStep === 4) loadExportArtifacts();
     }
   }
 
@@ -1075,8 +1086,8 @@
       renderActiveProjectViews();
       if (state.view === "monitor") loadMonitorDashboard();
       if (state.view === "review") {
-        loadReviewPage();
-        loadExportArtifacts();
+        if (state.reviewSubtab === "export") loadExportArtifacts();
+        else loadReviewPage();
       }
       if (state.view === "simple" && state.simpleStep === 4) {
         loadExportArtifacts();
@@ -1781,22 +1792,42 @@
     const grid = $("reviewGlyphGrid");
     if (!state.activeProjectId || !grid) return;
     const batchPath = $("reviewBatchSelect")?.value || "";
+    state.activeReviewBatch = batchPath;
     if (!batchPath) {
+      if (state.reviewPageAbort) state.reviewPageAbort.abort();
+      grid.classList.remove("is-loading");
       grid.innerHTML = `<div class="empty-state">${isZh() ? "暂无生成批次，请先前往「字形生成」生成一批字形。" : "No generation batches yet."}</div>`;
       return;
     }
     const q = $("reviewQueryInput")?.value.trim() || "";
+    if (state.reviewPageAbort) state.reviewPageAbort.abort();
+    const controller = new AbortController();
+    state.reviewPageAbort = controller;
+    const seq = ++state.reviewPageSeq;
+    grid.classList.add("is-loading");
     try {
       const data = await api(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/page?batch_path=${encodeURIComponent(batchPath)}&page=${state.reviewPage}&page_size=48&search=${encodeURIComponent(q)}`
+        `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/page?batch_path=${encodeURIComponent(batchPath)}&page=${state.reviewPage}&page_size=48&search=${encodeURIComponent(q)}`,
+        { signal: controller.signal }
       );
+      if (seq !== state.reviewPageSeq) return;
       state.reviewTotalPages = Math.max(1, data.total_pages || 1);
       state.reviewPage = Math.min(state.reviewPage, state.reviewTotalPages);
       const lbl = $("reviewPageLabel");
       if (lbl) lbl.textContent = `${state.reviewPage} / ${state.reviewTotalPages}`;
       const items = data.items || [];
       const sum = $("reviewSummaryText");
-      if (sum) sum.textContent = isZh() ? `当前页 ${items.length} 字` : `${items.length} glyphs on page`;
+      if (sum) {
+        const total = data.total_items;
+        sum.textContent =
+          total != null
+            ? isZh()
+              ? `当前页 ${items.length} / 共 ${total} 字`
+              : `${items.length} on page / ${total} total`
+            : isZh()
+              ? `当前页 ${items.length} 字`
+              : `${items.length} glyphs on page`;
+      }
 
       if (!items.length) {
         grid.innerHTML = `<div class="empty-state">${isZh() ? "当前筛选条件下没有字形" : "No glyphs match filter"}</div>`;
@@ -1805,7 +1836,9 @@
       grid.innerHTML = items
         .map((it) => {
           const active = it.codepoint === state.selectedReviewChar;
-          const img = it.url ? `<img src="${escapeHtml(it.url)}" alt="${escapeHtml(it.char)}" loading="lazy" />` : `<div class="empty-state">-</div>`;
+          const img = it.url
+            ? `<img src="${escapeHtml(it.url)}" alt="${escapeHtml(it.char)}" loading="lazy" decoding="async" width="64" height="64" />`
+            : `<div class="empty-state">-</div>`;
           return `<button class="glyph-cell ${active ? "active" : ""} ${it.manual ? "warn" : ""}" type="button" data-review-cp="${escapeHtml(it.codepoint)}">
             ${img}
             <span class="glyph-char">${escapeHtml(it.char)}</span>
@@ -1813,15 +1846,13 @@
           </button>`;
         })
         .join("");
-      grid.querySelectorAll("[data-review-cp]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          state.selectedReviewChar = btn.getAttribute("data-review-cp") || "";
-          grid.querySelectorAll(".glyph-cell").forEach((c) => c.classList.toggle("active", c === btn));
-          loadReviewCandidates(batchPath, state.selectedReviewChar);
-        });
-      });
     } catch (err) {
+      if (err && err.name === "AbortError") return;
       toast(err.message, "danger");
+    } finally {
+      if (seq === state.reviewPageSeq) {
+        grid.classList.remove("is-loading");
+      }
     }
   }
 
@@ -1829,10 +1860,17 @@
     if (!state.activeProjectId || !batchPath || !codepoint) return;
     const list = $("candidateList");
     const codeEl = $("candidateCharCode");
+    if (state.reviewCandAbort) state.reviewCandAbort.abort();
+    const controller = new AbortController();
+    state.reviewCandAbort = controller;
+    const seq = ++state.reviewCandSeq;
+    if (list) list.classList.add("is-loading");
     try {
       const data = await api(
-        `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/candidates?batch_path=${encodeURIComponent(batchPath)}&codepoint=${encodeURIComponent(codepoint)}`
+        `/api/projects/${encodeURIComponent(state.activeProjectId)}/review/candidates?batch_path=${encodeURIComponent(batchPath)}&codepoint=${encodeURIComponent(codepoint)}`,
+        { signal: controller.signal }
       );
+      if (seq !== state.reviewCandSeq) return;
       if (codeEl) codeEl.textContent = `${data.char || ""} (${codepoint})`;
       const cands = data.candidates || [];
       if (!cands.length) {
@@ -1840,41 +1878,39 @@
         return;
       }
       if (list) {
+        list.dataset.batchPath = batchPath;
+        list.dataset.codepoint = codepoint;
         list.innerHTML = cands
           .map(
             (c, idx) => `<button class="candidate-card ${c.selected ? "selected" : ""}" type="button" data-cand-path="${escapeHtml(c.path)}">
-              <img src="${escapeHtml(c.url)}" alt="${escapeHtml(c.name)}" />
+              <img src="${escapeHtml(c.url)}" alt="${escapeHtml(c.name)}" decoding="async" />
               <span class="pill ${c.selected ? "ok" : ""}">#${idx + 1}${c.selected ? (isZh() ? " · 已选" : " · Selected") : ""}</span>
             </button>`
           )
           .join("");
-        list.querySelectorAll("[data-cand-path]").forEach((btn) => {
-          btn.addEventListener("click", async () => {
-            const imagePath = btn.getAttribute("data-cand-path") || "";
-            try {
-              await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/review/select`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ batch_path: batchPath, codepoint, image_path: imagePath }),
-              });
-              toast(isZh() ? `已选定 ${codepoint} 的候选字形` : `Selected candidate for ${codepoint}`, "ok");
-              loadReviewCandidates(batchPath, codepoint);
-              loadReviewPage();
-            } catch (err) {
-              toast(err.message, "danger");
-            }
-          });
-        });
       }
     } catch (err) {
+      if (err && err.name === "AbortError") return;
       toast(err.message, "danger");
+    } finally {
+      if (seq === state.reviewCandSeq && list) {
+        list.classList.remove("is-loading");
+      }
     }
   }
 
   async function loadExportArtifacts() {
     if (!state.activeProjectId) return;
+    if (state.exportArtifactsAbort) state.exportArtifactsAbort.abort();
+    const controller = new AbortController();
+    state.exportArtifactsAbort = controller;
+    const seq = ++state.exportArtifactsSeq;
     try {
-      const data = await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/export/artifacts`);
+      const data = await api(
+        `/api/projects/${encodeURIComponent(state.activeProjectId)}/export/artifacts?svg_limit=48`,
+        { signal: controller.signal }
+      );
+      if (seq !== state.exportArtifactsSeq) return;
       const downloads = data.artifacts || data.downloads || [];
       const svgs = data.svgs || data.svg_samples || [];
       const html = downloads.length
@@ -1896,27 +1932,60 @@
       const svgHost = $("exportSvgGrid");
       if (svgHost) {
         svgHost.innerHTML = svgs.length
-          ? svgs.map((s) => `<div class="svg-card"><img src="${escapeHtml(s.url)}" alt="${escapeHtml(s.name)}" loading="lazy" /></div>`).join("")
+          ? svgs
+              .map(
+                (s) =>
+                  `<div class="svg-card"><img src="${escapeHtml(s.url)}" alt="${escapeHtml(s.name)}" loading="lazy" decoding="async" width="56" height="56" /></div>`
+              )
+              .join("")
           : `<div class="empty-state">${isZh() ? "导出后展示矢量抽样" : "Vector samples appear after export"}</div>`;
       }
 
       const previewUrl = data.preview_font_url || (downloads.find((d) => String(d.name || "").toLowerCase().endsWith(".ttf")) || {}).url;
       const previewName = data.preview_font_name || (downloads.find((d) => String(d.name || "").toLowerCase().endsWith(".ttf")) || {}).name;
+      const previewVersion = data.preview_font_version || "";
       if (previewUrl) {
-        await loadSpecimenFont(previewUrl, previewName || "preview.ttf");
+        await loadSpecimenFont(previewUrl, previewName || "preview.ttf", previewVersion);
         renderSimpleWorkbench();
       }
-    } catch (_) {
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
       // ignore if no exports yet
     }
   }
 
-  async function loadSpecimenFont(url, name) {
+  async function loadSpecimenFont(url, name, version = "") {
+    const key = `${url}|${version}`;
+    if (state.loadedSpecimenKey === key && state.loadedSpecimenFont) {
+      ["specimenInput", "simpleSpecimenInput"].forEach((id) => {
+        const el = $(id);
+        if (el) el.style.fontFamily = `"${state.loadedSpecimenFont}", sans-serif`;
+      });
+      ["specimenFontBadge", "simpleSpecimenBadge"].forEach((id) => {
+        const el = $(id);
+        if (el) {
+          el.textContent = name;
+          el.className = "pill ok";
+        }
+      });
+      return;
+    }
     const fontFamily = `Zi2ziPreview_${Date.now()}`;
+    const sep = url.includes("?") ? "&" : "?";
+    const fontUrl = version ? `${url}${sep}v=${encodeURIComponent(version)}` : url;
     try {
-      const face = new FontFace(fontFamily, `url(${url}?t=${Date.now()})`);
+      const face = new FontFace(fontFamily, `url("${fontUrl}")`);
       const loaded = await face.load();
+      if (state.loadedSpecimenFace) {
+        try {
+          document.fonts.delete(state.loadedSpecimenFace);
+        } catch (_) {
+          // ignore
+        }
+      }
       document.fonts.add(loaded);
+      state.loadedSpecimenFace = loaded;
+      state.loadedSpecimenKey = key;
       state.loadedSpecimenFont = fontFamily;
       ["specimenInput", "simpleSpecimenInput"].forEach((id) => {
         const el = $(id);
@@ -2608,16 +2677,71 @@
       btn.addEventListener("click", () => setReviewSubtab(btn.getAttribute("data-subtab")));
     });
     $("btnRefreshReview")?.addEventListener("click", () => {
-      loadReviewPage();
-      loadExportArtifacts();
+      if (state.reviewSubtab === "export") loadExportArtifacts();
+      else loadReviewPage();
     });
     $("reviewBatchSelect")?.addEventListener("change", () => {
       state.reviewPage = 1;
       loadReviewPage();
     });
-    $("reviewQueryInput")?.addEventListener("input", () => {
+    const scheduleReviewSearch = (immediate = false) => {
+      clearTimeout(state.reviewSearchTimer);
       state.reviewPage = 1;
-      loadReviewPage();
+      if (immediate) {
+        loadReviewPage();
+      } else {
+        state.reviewSearchTimer = setTimeout(() => loadReviewPage(), 250);
+      }
+    };
+    $("reviewQueryInput")?.addEventListener("compositionstart", () => {
+      state.reviewSearchComposing = true;
+    });
+    $("reviewQueryInput")?.addEventListener("compositionend", () => {
+      state.reviewSearchComposing = false;
+      scheduleReviewSearch(false);
+    });
+    $("reviewQueryInput")?.addEventListener("input", (e) => {
+      if (state.reviewSearchComposing || e.isComposing) return;
+      scheduleReviewSearch(false);
+    });
+    $("reviewQueryInput")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !state.reviewSearchComposing) {
+        scheduleReviewSearch(true);
+      }
+    });
+    $("reviewGlyphGrid")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-review-cp]");
+      if (!btn) return;
+      const grid = $("reviewGlyphGrid");
+      const cp = btn.getAttribute("data-review-cp") || "";
+      const batchPath = state.activeReviewBatch || $("reviewBatchSelect")?.value || "";
+      if (!cp || !batchPath) return;
+      state.selectedReviewChar = cp;
+      grid?.querySelectorAll(".glyph-cell.active").forEach((c) => c.classList.remove("active"));
+      btn.classList.add("active");
+      loadReviewCandidates(batchPath, cp);
+    });
+    $("candidateList")?.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-cand-path]");
+      if (!btn) return;
+      const list = $("candidateList");
+      const batchPath = list?.dataset.batchPath || state.activeReviewBatch || "";
+      const codepoint = list?.dataset.codepoint || state.selectedReviewChar || "";
+      const imagePath = btn.getAttribute("data-cand-path") || "";
+      if (!state.activeProjectId || !batchPath || !codepoint || !imagePath) return;
+      try {
+        await api(`/api/projects/${encodeURIComponent(state.activeProjectId)}/review/select`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batch_path: batchPath, codepoint, image_path: imagePath }),
+        });
+        toast(isZh() ? `已选定 ${codepoint} 的候选字形` : `Selected candidate for ${codepoint}`, "ok");
+        const cell = $("reviewGlyphGrid")?.querySelector(`[data-review-cp="${CSS.escape(codepoint)}"]`);
+        if (cell) cell.classList.add("warn");
+        loadReviewCandidates(batchPath, codepoint);
+      } catch (err) {
+        toast(err.message, "danger");
+      }
     });
     $("reviewFilterSelect")?.addEventListener("change", () => {
       state.reviewPage = 1;
