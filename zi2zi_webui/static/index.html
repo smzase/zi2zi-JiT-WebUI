@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>zi2zi-JiT Font Studio</title>
+  <link rel="stylesheet" href="/static/styles.css?v=5" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">字</div>
+        <div class="brand-meta">
+          <div class="brand-title">zi2zi-JiT</div>
+          <div class="brand-sub" data-i18n="brandSub">Font Studio</div>
+        </div>
+      </div>
+
+      <div class="mode-switcher" id="uiModeSwitcher" role="tablist" aria-label="Interface mode">
+        <button class="mode-btn active" data-ui-mode="simple" type="button" data-i18n="modeSimple">简易模式</button>
+        <button class="mode-btn" data-ui-mode="advanced" type="button" data-i18n="modeAdvanced">高级模式</button>
+      </div>
+
+      <div class="project-switcher">
+        <div class="switcher-label-row">
+          <span class="micro-label" data-i18n="activeProject">当前项目</span>
+          <button class="btn-link" id="quickNewProjectBtn" type="button" data-i18n="newProjectShort">+ 新建</button>
+        </div>
+        <select id="globalProjectSelect" class="select-input" aria-label="Active project"></select>
+        <div class="project-pills" id="projectReadinessPills"></div>
+      </div>
+
+      <nav class="nav-group" id="simpleNavGroup" aria-label="Quick Start">
+        <div class="micro-label nav-section-title" data-i18n="quickStartSection">快速引导</div>
+        <button class="nav-item active" data-view="simple" type="button">
+          <span class="nav-step">01</span>
+          <span class="nav-text" data-i18n="navSimpleWizard">快速出字向导</span>
+        </button>
+      </nav>
+
+      <nav class="nav-group hidden" id="advancedNavGroup" aria-label="Workflow">
+        <div class="micro-label nav-section-title" data-i18n="workflowSection">工作流</div>
+        <button class="nav-item active" data-view="projects" type="button">
+          <span class="nav-step">01</span>
+          <span class="nav-text" data-i18n="navProjects">项目与备份</span>
+        </button>
+        <button class="nav-item" data-view="assets" type="button">
+          <span class="nav-step">02</span>
+          <span class="nav-text" data-i18n="navAssets">素材与模型</span>
+        </button>
+        <button class="nav-item" data-view="train" type="button">
+          <span class="nav-step">03</span>
+          <span class="nav-text" data-i18n="navTrain">数据与训练</span>
+        </button>
+        <button class="nav-item" data-view="monitor" type="button">
+          <span class="nav-step">04</span>
+          <span class="nav-text" data-i18n="navMonitor">训练监控</span>
+        </button>
+        <button class="nav-item" data-view="generate" type="button">
+          <span class="nav-step">05</span>
+          <span class="nav-text" data-i18n="navGenerate">字形生成</span>
+        </button>
+        <button class="nav-item" data-view="review" type="button">
+          <span class="nav-step">06</span>
+          <span class="nav-text" data-i18n="navReview">审阅与导出</span>
+        </button>
+      </nav>
+
+      <nav class="nav-group nav-group-secondary" aria-label="System">
+        <div class="micro-label nav-section-title" data-i18n="systemSection">系统</div>
+        <button class="nav-item" data-view="jobs" type="button">
+          <span class="nav-step">Q</span>
+          <span class="nav-text" data-i18n="navJobs">任务队列</span>
+          <span class="nav-badge hidden" id="activeJobsBadge">0</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sys-row">
+          <span class="sys-key" data-i18n="deviceLabel">计算设备</span>
+          <span class="sys-val" id="sidebarDevice">—</span>
+        </div>
+        <div class="sys-row">
+          <span class="sys-key" data-i18n="diskLabel">可用磁盘</span>
+          <span class="sys-val" id="sidebarDisk">—</span>
+        </div>
+        <a class="tb-link" id="tensorboardLink" href="http://127.0.0.1:6006" target="_blank" rel="noreferrer" data-i18n="openTensorboard">打开 TensorBoard</a>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn btn-ghost btn-sm mobile-menu-btn" id="mobileMenuBtn" type="button">菜单</button>
+          <div>
+            <h1 class="view-title" id="viewTitle">项目与备份</h1>
+            <p class="view-subtitle" id="viewSubtitle"></p>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="status-pill" id="topJobPill" type="button" title="View jobs">
+            <span class="status-dot" id="topJobDot"></span>
+            <span id="topJobText">空闲</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="langToggleBtn" type="button">EN</button>
+          <button class="btn btn-ghost btn-sm" id="themeToggleBtn" type="button">深色</button>
+        </div>
+      </header>
+
+      <main class="content" id="contentArea">
+        <!-- VIEW 0: SIMPLE WIZARD -->
+        <section class="view" id="view-simple">
+          <div class="wizard-banner hidden" id="simpleJobBanner">
+            <div class="wizard-banner-text">
+              <span class="status-dot running"></span>
+              <span id="simpleJobBannerText"></span>
+            </div>
+            <button class="btn btn-ghost btn-xs" id="simpleViewLogsBtn" type="button" data-i18n="viewLogs">查看日志</button>
+          </div>
+
+          <div class="wizard-stack">
+            <!-- STEP 1: PROJECT & MODEL -->
+            <div class="card wizard-card">
+              <div class="wizard-card-head">
+                <div class="wizard-title-wrap">
+                  <span class="wizard-step-badge">01</span>
+                  <div>
+                    <h2 class="card-title" data-i18n="simpleStep1Title">准备项目与基础模型</h2>
+                    <span class="card-hint" data-i18n="simpleStep1Hint">新建一个字体项目，并挂载或一键下载官方基础模型</span>
+                  </div>
+                </div>
+                <span class="pill" id="simpleStep1Status">待配置</span>
+              </div>
+
+              <div class="grid-2">
+                <div class="sub-panel">
+                  <div class="sub-panel-title" data-i18n="simpleProjectBoxTitle">字体项目</div>
+                  <div class="inline-form">
+                    <input id="simpleNewProjectName" class="text-input" type="text" placeholder="输入项目名称，如：我的手写体" />
+                    <button class="btn btn-primary" id="simpleCreateProjectBtn" type="button" data-i18n="createBtn">创建项目</button>
+                  </div>
+                  <div class="status-strip" id="simpleProjectStatus"></div>
+                </div>
+
+                <div class="sub-panel">
+                  <div class="sub-panel-title" data-i18n="simpleModelBoxTitle">基础模型</div>
+                  <div class="inline-form">
+                    <select id="simpleSharedModelSelect" class="select-input"></select>
+                    <button class="btn btn-secondary" id="simpleAttachModelBtn" type="button" data-i18n="simpleAttachBtn">挂载</button>
+                  </div>
+                  <div class="action-row">
+                    <button class="btn btn-ghost btn-sm" id="simpleDownloadDefaultBtn" type="button" data-i18n="simpleDownloadModelBtn">一键下载官方 JiT-B/16</button>
+                    <button class="btn btn-ghost btn-sm" id="simpleToggleUploadModelBtn" type="button" data-i18n="simpleUploadLocalToggle">导入本地权重</button>
+                  </div>
+                  <div class="simple-upload-collapse hidden" id="simpleLocalModelBox">
+                    <div class="dropzone compact" data-input="simpleLocalModelFile">
+                      <input type="file" id="simpleLocalModelFile" accept=".pth,.pt,.ckpt" hidden />
+                      <span class="dropzone-text" data-i18n="dropCheckpoint">选择 .pth / .pt / .ckpt</span>
+                      <span class="dropzone-files"></span>
+                    </div>
+                    <div class="action-row spread">
+                      <label class="checkbox-label compact">
+                        <input type="checkbox" id="simpleTrustLocalModel" />
+                        <span data-i18n="trustCheckpointText">确认该权重来源可信 (pickle 加载确认)</span>
+                      </label>
+                      <button class="btn btn-secondary btn-sm" id="simpleUploadModelBtn" type="button" data-i18n="importModelBtn">导入并挂载</button>
+                    </div>
+                  </div>
+                  <div class="status-strip" id="simpleModelStatus"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 2: UPLOAD FONTS -->
+            <div class="card wizard-card">
+              <div class="wizard-card-head">
+                <div class="wizard-title-wrap">
+                  <span class="wizard-step-badge">02</span>
+                  <div>
+                    <h2 class="card-title" data-i18n="simpleStep2Title">上传参考源字体与目标风格字体</h2>
+                    <span class="card-hint" data-i18n="simpleStep2Hint">源字体提供清晰字形结构（如思源黑体），目标字体提供你想模仿的笔触风格</span>
+                  </div>
+                </div>
+                <span class="pill" id="simpleStep2Status">待上传</span>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <span class="field-label" data-i18n="simpleSourceFontLabel">参考源字体 (.ttf / .otf / .ttc)</span>
+                  <div class="dropzone compact" data-input="simpleSourceFontsInput">
+                    <input type="file" id="simpleSourceFontsInput" accept=".ttf,.otf,.ttc" multiple hidden />
+                    <span class="dropzone-text" data-i18n="dropSourceFonts">点击或拖拽上传源字体文件</span>
+                    <span class="dropzone-files"></span>
+                  </div>
+                </div>
+                <div class="field">
+                  <span class="field-label" data-i18n="simpleTargetFontLabel">目标风格字体 (.ttf / .otf / .ttc)</span>
+                  <div class="dropzone compact" data-input="simpleTargetFontInput">
+                    <input type="file" id="simpleTargetFontInput" accept=".ttf,.otf,.ttc" hidden />
+                    <span class="dropzone-text" data-i18n="simpleDropTargetFont">点击或拖拽上传目标风格字体</span>
+                    <span class="dropzone-files"></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="action-row spread">
+                <div class="status-strip inline" id="simpleAssetsStatus"></div>
+                <button class="btn btn-primary" id="simpleSaveAssetsBtn" type="button" data-i18n="simpleSaveAssetsBtn">保存字体并提取风格参考</button>
+              </div>
+            </div>
+
+            <!-- STEP 3: GENERATE OR QUICK TRAIN -->
+            <div class="card wizard-card">
+              <div class="wizard-card-head">
+                <div class="wizard-title-wrap">
+                  <span class="wizard-step-badge">03</span>
+                  <div>
+                    <h2 class="card-title" data-i18n="simpleStep3Title">开始生字（或先快速微调）</h2>
+                    <span class="card-hint" data-i18n="simpleStep3Hint">新手可直接输入文字生成测试效果；想要更还原笔触可先运行一键微调</span>
+                  </div>
+                </div>
+                <span class="pill" id="simpleStep3Status">准备就绪</span>
+              </div>
+
+              <div class="segmented" id="simpleStep3Tabs">
+                <button class="seg-btn active" data-simple-tab="simple-gen-pane" type="button" data-i18n="simpleTabDirectGen">直接生字（推荐先试）</button>
+                <button class="seg-btn" data-simple-tab="simple-train-pane" type="button" data-i18n="simpleTabQuickTrain">先快速微调（效果更佳）</button>
+              </div>
+
+              <div class="simple-pane active" id="simple-gen-pane">
+                <label class="field">
+                  <div class="label-inline">
+                    <span class="field-label" data-i18n="simpleTextLabel">输入想要生成的文字</span>
+                    <button class="btn-link" id="simpleFillSampleBtn" type="button" data-i18n="simpleFillSample">填入示例文本</button>
+                  </div>
+                  <textarea id="simpleGenText" class="textarea-input" rows="3" placeholder="例如：永和九年岁在癸丑暮春之初"></textarea>
+                  <span class="field-meta" id="simpleCharCounter">0 个去重字符</span>
+                </label>
+
+                <div class="field">
+                  <span class="field-label" data-i18n="simpleQuickPresetsLabel">或快捷勾选常用字符集</span>
+                  <div class="quick-preset-row" id="simpleQuickPresets"></div>
+                </div>
+
+                <div class="action-row spread">
+                  <div class="status-strip inline" id="simpleGenHint"></div>
+                  <button class="btn btn-primary" id="simpleStartGenBtn" type="button" data-i18n="simpleStartGenBtn">立即开始生成字形</button>
+                </div>
+              </div>
+
+              <div class="simple-pane" id="simple-train-pane">
+                <div class="grid-2">
+                  <label class="field">
+                    <span class="field-label" data-i18n="simpleTrainPresetLabel">选择微调强度</span>
+                    <select id="simpleTrainPreset" class="select-input">
+                      <option value="fast">快速体验（500 字 · 10 轮 · 约数分钟）</option>
+                      <option value="standard" selected>均衡推荐（3000 字 · 20 轮 · 笔触更稳）</option>
+                    </select>
+                  </label>
+                  <div class="field">
+                    <span class="field-label" data-i18n="simpleTrainTipLabel">说明</span>
+                    <div class="status-strip" id="simpleTrainStatus">先点击「构建训练数据」，待任务完成后再点击「开始快速微调」。</div>
+                  </div>
+                </div>
+                <div class="action-row">
+                  <button class="btn btn-secondary" id="simpleBuildDatasetBtn" type="button" data-i18n="simpleBuildDatasetBtn">1. 构建训练数据</button>
+                  <button class="btn btn-primary" id="simpleStartTrainBtn" type="button" data-i18n="simpleStartTrainBtn">2. 开始快速微调</button>
+                  <button class="btn btn-ghost btn-sm" id="simpleGoMonitorBtn" type="button" data-i18n="simpleGoMonitorBtn">切到高级模式看曲线</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 4: EXPORT & PREVIEW -->
+            <div class="card wizard-card">
+              <div class="wizard-card-head">
+                <div class="wizard-title-wrap">
+                  <span class="wizard-step-badge">04</span>
+                  <div>
+                    <h2 class="card-title" data-i18n="simpleStep4Title">导出可安装字库 (.ttf) 与试写</h2>
+                    <span class="card-hint" data-i18n="simpleStep4Hint">自动采用最新生成批次与推荐矢量化参数，一键合成可安装 TrueType 字体</span>
+                  </div>
+                </div>
+                <span class="pill" id="simpleStep4Status">待生成</span>
+              </div>
+
+              <div class="inline-form">
+                <input id="simpleExportFamily" class="text-input" type="text" value="MyCustomFont" placeholder="字体名称，如 MyCustomFont" />
+                <button class="btn btn-primary" id="simpleBuildFontBtn" type="button" data-i18n="simpleBuildFontBtn">一键导出 TTF 字库</button>
+                <button class="btn btn-ghost btn-sm" id="simpleRefreshArtifactsBtn" type="button" data-i18n="refresh">刷新</button>
+              </div>
+
+              <div class="grid-2">
+                <div class="sub-panel">
+                  <div class="sub-panel-title" data-i18n="downloadableFilesTitle">下载文件</div>
+                  <div class="file-list" id="simpleArtifactsList"></div>
+                </div>
+                <div class="sub-panel">
+                  <div class="sub-panel-title">
+                    <span data-i18n="simplePreviewTitle">实时试写</span>
+                    <span class="pill" id="simplePreviewFontBadge">—</span>
+                  </div>
+                  <textarea id="simpleSpecimenTextarea" class="specimen-textarea compact" rows="3">永和九年，岁在癸丑，暮春之初。AaBbCc 0123456789</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 1: PROJECTS -->
+        <section class="view active" id="view-projects">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="createProjectTitle">新建项目</h2>
+                <span class="card-hint" data-i18n="createProjectHint">每个项目独立管理素材、数据集、微调权重与导出字库</span>
+              </div>
+              <div class="inline-form">
+                <input id="newProjectName" class="text-input" type="text" placeholder="例如：手写楷体 v1" />
+                <button id="createProjectBtn" class="btn btn-primary" type="button" data-i18n="createBtn">创建项目</button>
+              </div>
+              <div class="divider"></div>
+              <div class="card-head compact">
+                <h3 class="sub-title" data-i18n="projectListTitle">项目列表</h3>
+                <button class="btn btn-ghost btn-xs" id="refreshProjectsBtn" type="button" data-i18n="refresh">刷新</button>
+              </div>
+              <div id="projectList" class="item-list"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="currentProjectTitle">当前项目概览</h2>
+              </div>
+              <div id="projectOverviewBody" class="kv-grid"></div>
+              <div class="divider"></div>
+              <div class="danger-row">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="confirmDeleteProject" />
+                  <span data-i18n="confirmDeleteProjectText">确认永久删除当前项目及其全部本地文件</span>
+                </label>
+                <button class="btn btn-danger btn-sm" id="deleteProjectBtn" type="button" data-i18n="deleteProjectBtn">删除项目</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="exportPackageTitle">导出项目迁移包</h2>
+                <span class="card-hint" data-i18n="exportPackageHint">将当前项目打包为 .zi2zi-project.zip 便于备份或迁移</span>
+              </div>
+              <label class="field">
+                <span class="field-label" data-i18n="packageMode">打包模式</span>
+                <select id="exportPackageMode" class="select-input">
+                  <option value="lightweight">lightweight (轻量：配置与关键权重)</option>
+                  <option value="full">full (完整：包含数据集与中间产物)</option>
+                </select>
+              </label>
+              <div class="action-row">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="exportIncludeShared" />
+                  <span data-i18n="includeSharedModels">同时打包共享基础模型</span>
+                </label>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-secondary" id="exportPackageBtn" type="button" data-i18n="exportPackageBtn">开始导出项目包</button>
+              </div>
+              <div class="divider"></div>
+              <div class="sub-title" data-i18n="exportedPackagesTitle">已导出的迁移包</div>
+              <div id="exportPackagesList" class="file-list"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="importPackageTitle">导入项目迁移包</h2>
+                <span class="card-hint" data-i18n="importPackageHint">先上传并检查包内容，再确认作为新项目导入</span>
+              </div>
+              <div class="dropzone" data-input="importPackageFile">
+                <input id="importPackageFile" type="file" accept=".zip" class="file-input-hidden" />
+                <div class="dropzone-text" data-i18n="dropPackage">点击选择或拖拽 .zi2zi-project.zip 文件</div>
+                <div class="dropzone-files" id="importPackageFileName"></div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-secondary" id="inspectPackageBtn" type="button" data-i18n="inspectPackageBtn">预检项目包</button>
+              </div>
+              <div id="packageInspectionBox" class="inspect-box hidden"></div>
+              <div class="action-row hidden" id="confirmImportRow">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="confirmImportPackage" />
+                  <span data-i18n="confirmImportText">已核对内容，确认导入为新项目</span>
+                </label>
+                <button class="btn btn-primary btn-sm" id="importPackageBtn" type="button" data-i18n="importPackageBtn">确认导入</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 2: ASSETS & MODELS -->
+        <section class="view" id="view-assets">
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title" data-i18n="baseModelTitle">基础模型管理</h2>
+              <span class="card-hint" data-i18n="baseModelHint">下载官方预训练模型、挂载共享库模型，或导入本地受信任权重</span>
+            </div>
+            <div class="grid-3">
+              <div class="sub-card">
+                <div class="sub-title" data-i18n="downloadOfficialTitle">官方预训练下载</div>
+                <label class="field">
+                  <span class="field-label" data-i18n="modelVariant">模型规格</span>
+                  <select id="officialModelSelect" class="select-input">
+                    <option value="JiT-B/16">JiT-B/16 (推荐，显存友好)</option>
+                    <option value="JiT-L/16">JiT-L/16 (更大容量)</option>
+                  </select>
+                </label>
+                <button class="btn btn-secondary btn-block" id="downloadOfficialBtn" type="button" data-i18n="downloadModelBtn">加入下载队列</button>
+              </div>
+
+              <div class="sub-card">
+                <div class="sub-title" data-i18n="sharedModelsTitle">本地共享模型库</div>
+                <label class="field">
+                  <span class="field-label" data-i18n="selectSharedModel">选择已有模型</span>
+                  <select id="sharedModelSelect" class="select-input"></select>
+                </label>
+                <div class="btn-group">
+                  <button class="btn btn-primary" id="attachSharedModelBtn" type="button" data-i18n="attachModelBtn">挂载到当前项目</button>
+                  <button class="btn btn-ghost" id="refreshSharedModelsBtn" type="button" data-i18n="refresh">刷新</button>
+                </div>
+              </div>
+
+              <div class="sub-card">
+                <div class="sub-title" data-i18n="uploadLocalModelTitle">导入本地 Checkpoint</div>
+                <div class="dropzone compact" data-input="localModelFile">
+                  <input id="localModelFile" type="file" accept=".pth,.pt,.ckpt" class="file-input-hidden" />
+                  <div class="dropzone-text" data-i18n="dropCheckpoint">选择 .pth / .pt / .ckpt</div>
+                  <div class="dropzone-files" id="localModelFileName"></div>
+                </div>
+                <label class="checkbox-label">
+                  <input type="checkbox" id="trustLocalModel" />
+                  <span data-i18n="trustCheckpointText">确认该权重来源可信 (pickle 加载确认)</span>
+                </label>
+                <button class="btn btn-secondary btn-block" id="uploadLocalModelBtn" type="button" data-i18n="importModelBtn">导入并挂载</button>
+              </div>
+            </div>
+            <div class="status-strip" id="currentModelStatus"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title" data-i18n="fontAssetsTitle">源字体与目标风格素材</h2>
+              <span class="card-hint" data-i18n="fontAssetsHint">上传标准字形作为源字体，上传需要学习的风格字体或已渲染字形图作为目标素材</span>
+            </div>
+
+            <div class="segmented" id="inputModeSwitch" role="radiogroup">
+              <button class="seg-btn active" type="button" data-mode="font" data-i18n="modeFont">目标字体文件 (.ttf / .otf / .ttc)</button>
+              <button class="seg-btn" type="button" data-mode="glyphs" data-i18n="modeGlyphs">目标字形图片 (多张 .png / .jpg)</button>
+            </div>
+
+            <div class="grid-2">
+              <div class="field">
+                <span class="field-label" data-i18n="globalSourceFontsLabel">全局源字体（必选，可多选作为回退链）</span>
+                <div class="dropzone" data-input="sourceFontsInput">
+                  <input id="sourceFontsInput" type="file" multiple accept=".ttf,.otf,.ttc,.woff,.woff2" class="file-input-hidden" />
+                  <div class="dropzone-text" data-i18n="dropSourceFonts">点击或拖拽上传源字体文件</div>
+                  <div class="dropzone-files" id="sourceFontsFiles"></div>
+                </div>
+              </div>
+
+              <div class="field">
+                <span class="field-label" id="targetAssetsLabel">目标风格字体文件</span>
+                <div class="dropzone" data-input="targetAssetsInput">
+                  <input id="targetAssetsInput" type="file" multiple accept=".ttf,.otf,.ttc,.png,.jpg,.jpeg" class="file-input-hidden" />
+                  <div class="dropzone-text" id="targetDropText">点击或拖拽上传目标字体</div>
+                  <div class="dropzone-files" id="targetAssetsFiles"></div>
+                </div>
+              </div>
+            </div>
+
+            <details class="collapsible">
+              <summary data-i18n="regionalFontsSummary">可选：按地区覆盖源字体（SC / TC / JP / KR）</summary>
+              <div class="grid-4 regional-grid">
+                <div class="field">
+                  <span class="field-label">SC 简体源字体</span>
+                  <input id="scFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
+                </div>
+                <div class="field">
+                  <span class="field-label">TC 繁体源字体</span>
+                  <input id="tcFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
+                </div>
+                <div class="field">
+                  <span class="field-label">JP 日文源字体</span>
+                  <input id="jpFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
+                </div>
+                <div class="field">
+                  <span class="field-label">KR 韩文源字体</span>
+                  <input id="krFontsInput" type="file" multiple accept=".ttf,.otf,.ttc" class="native-file-input" />
+                </div>
+              </div>
+            </details>
+
+            <div class="action-row">
+              <button class="btn btn-primary" id="saveAssetsBtn" type="button" data-i18n="saveAssetsBtn">保存素材并构建风格参考池</button>
+            </div>
+
+            <div class="divider"></div>
+            <div class="sub-title" data-i18n="savedAssetsTitle">当前项目已保存素材</div>
+            <div id="savedAssetsSummary" class="kv-grid"></div>
+          </div>
+        </section>
+
+        <!-- VIEW 3: DATASET & TRAINING -->
+        <section class="view" id="view-train">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="datasetBuildTitle">构建训练数据集</h2>
+                <span class="card-hint" data-i18n="datasetBuildHint">从源字体与目标素材的公共字集中采样生成训练与验证对</span>
+              </div>
+
+              <div class="preset-strip">
+                <span class="micro-label" data-i18n="quickScale">快速规模预设</span>
+                <div class="btn-group">
+                  <button class="btn btn-ghost btn-xs dataset-preset-btn" data-preset="quick" type="button">快速验证 (500 / 8)</button>
+                  <button class="btn btn-ghost btn-xs dataset-preset-btn" data-preset="balanced" type="button">标准平衡 (3000 / 64)</button>
+                  <button class="btn btn-ghost btn-xs dataset-preset-btn" data-preset="coverage" type="button">高覆盖 (6000 / 128)</button>
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <label class="field">
+                  <span class="field-label" data-i18n="trainCountLabel">训练字数</span>
+                  <input id="datasetTrainCount" class="text-input" type="number" min="9" value="3000" />
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="testCountLabel">验证字数</span>
+                  <input id="datasetTestCount" class="text-input" type="number" min="1" value="64" />
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="charsetFilterLabel">字符集范围</span>
+                  <select id="datasetCharset" class="select-input">
+                    <option value="auto">auto (自动公共字集)</option>
+                    <option value="gb2312">gb2312</option>
+                    <option value="gbk">gbk</option>
+                    <option value="big5">big5</option>
+                    <option value="jisx0208">jisx0208</option>
+                    <option value="ksx1001">ksx1001</option>
+                    <option value="all-cjk">all-cjk</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="workersLabel">渲染并行线程</span>
+                  <input id="datasetWorkers" class="text-input" type="number" min="1" max="32" value="4" />
+                </label>
+              </div>
+
+              <div class="action-row">
+                <button class="btn btn-secondary" id="checkCapacityBtn" type="button" data-i18n="checkCapacityBtn">检测可用字数上限</button>
+                <button class="btn btn-primary" id="buildDatasetBtn" type="button" data-i18n="buildDatasetBtn">提交数据集构建任务</button>
+              </div>
+              <div class="status-strip" id="datasetCapacityInfo"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="loraTrainingTitle">启动 LoRA 微调训练</h2>
+                <span class="card-hint" data-i18n="loraTrainingHint">基于已挂载的基础模型和数据集启动单卡微调</span>
+              </div>
+
+              <label class="field">
+                <span class="field-label" data-i18n="datasetPathLabel">数据集目录（留空自动使用最新数据集）</span>
+                <input id="trainDatasetPath" class="text-input mono" type="text" placeholder="自动解析当前项目最新数据集" />
+              </label>
+
+              <div class="form-grid-2">
+                <label class="field">
+                  <span class="field-label" data-i18n="trainDeviceLabel">训练设备</span>
+                  <select id="trainDevice" class="select-input"></select>
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="qualityProfileLabel">训练预设档位</span>
+                  <select id="trainQuality" class="select-input">
+                    <option value="economy">economy (省显存 / 更快)</option>
+                    <option value="balanced" selected>balanced (推荐平衡)</option>
+                    <option value="quality">quality (更高质量)</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="epochsLabel">训练轮数 (Epochs)</span>
+                  <input id="trainEpochs" class="text-input" type="number" min="1" max="5000" value="200" />
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="hflipLabel">水平翻转概率 (0.0 – 0.5)</span>
+                  <input id="trainHflip" class="text-input" type="number" min="0" max="0.5" step="0.05" value="0" />
+                </label>
+              </div>
+
+              <div class="action-row">
+                <button class="btn btn-primary" id="startTrainingBtn" type="button" data-i18n="startTrainingBtn">开始 LoRA 微调</button>
+              </div>
+
+              <div class="divider"></div>
+              <div class="sub-title" data-i18n="resumeRunTitle">续训或管理已有训练轮次</div>
+              <div class="inline-form">
+                <select id="manageRunSelect" class="select-input"></select>
+                <button class="btn btn-secondary" id="resumeRunBtn" type="button" data-i18n="resumeRunBtn">从 checkpoint-last 续训</button>
+              </div>
+              <div class="danger-row compact">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="confirmDeleteRun" />
+                  <span data-i18n="confirmDeleteRunText">确认删除所选训练记录及权重</span>
+                </label>
+                <button class="btn btn-danger btn-xs" id="deleteRunBtn" type="button" data-i18n="deleteRunBtn">删除记录</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 4: MONITOR -->
+        <section class="view" id="view-monitor">
+          <div class="card">
+            <div class="card-head">
+              <h2 class="card-title" data-i18n="monitorSelectTitle">训练运行选择与对比（最多 5 个）</h2>
+              <div class="btn-group">
+                <button class="btn btn-secondary btn-sm" id="refreshMonitorBtn" type="button" data-i18n="refreshMetrics">刷新指标</button>
+                <button class="btn btn-ghost btn-sm" id="exportMetricsBtn" type="button" data-i18n="exportMetrics">导出 CSV / JSON / PNG</button>
+              </div>
+            </div>
+            <div id="monitorRunsCheckboxes" class="chip-select-list"></div>
+            <div id="monitorSummaryBar" class="status-strip"></div>
+            <div id="monitorExportFiles" class="file-list"></div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card chart-card">
+              <div class="card-head compact"><h3 class="sub-title">Loss</h3></div>
+              <div class="chart-host" id="chart-loss"></div>
+            </div>
+            <div class="card chart-card">
+              <div class="card-head compact"><h3 class="sub-title">Learning Rate</h3></div>
+              <div class="chart-host" id="chart-lr"></div>
+            </div>
+            <div class="card chart-card">
+              <div class="card-head compact"><h3 class="sub-title">GPU / RAM</h3></div>
+              <div class="chart-host" id="chart-resources"></div>
+            </div>
+            <div class="card chart-card">
+              <div class="card-head compact"><h3 class="sub-title">Evaluation (SSIM / LPIPS / L1 / FID)</h3></div>
+              <div class="chart-host" id="chart-evaluation"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head compact">
+              <h3 class="sub-title" data-i18n="snapshotsTitle">字形演化快照（每对：目标真值 -> 当前生成）</h3>
+            </div>
+            <div id="monitorSnapshots" class="snapshot-grid"></div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-head compact"><h3 class="sub-title" data-i18n="paramsTableTitle">超参数对比</h3></div>
+              <div class="table-wrap" id="monitorParamsTable"></div>
+            </div>
+            <div class="card">
+              <div class="card-head compact"><h3 class="sub-title" data-i18n="checkpointsAlertsTitle">检查点与告警记录</h3></div>
+              <div id="monitorCheckpoints"></div>
+              <div class="divider"></div>
+              <div id="monitorAlerts"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 5: GENERATION -->
+        <section class="view" id="view-generate">
+          <div class="grid-2-wide">
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="charsetSelectionTitle">选择要生成的字符</h2>
+                <span class="card-hint" data-i18n="charsetSelectionHint">目标字体中已存在的字符会自动跳过，仅生成缺失字形</span>
+              </div>
+
+              <label class="field">
+                <span class="field-label" data-i18n="customTextLabel">自定义文本（直接输入或粘贴任意字符）</span>
+                <textarea id="genCustomText" class="text-area" rows="4" placeholder="例如：永和九年岁在癸丑暮春之初"></textarea>
+                <div class="field-meta"><span id="genCharCounter">0 个去重字符</span></div>
+              </label>
+
+              <div class="field">
+                <span class="field-label" data-i18n="presetCharsetsLabel">标准字符集预设</span>
+                <div id="genPresetsGrid" class="preset-grid"></div>
+              </div>
+
+              <div class="field">
+                <span class="field-label" data-i18n="customCharsetFileLabel">可选：上传自定义字符列表文件 (.txt)</span>
+                <div class="dropzone compact" data-input="genCustomFile">
+                  <input id="genCustomFile" type="file" accept=".txt,.json" class="file-input-hidden" />
+                  <div class="dropzone-text" data-i18n="dropCharsetFile">点击或拖拽上传字符表文件</div>
+                  <div class="dropzone-files" id="genCustomFileName"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h2 class="card-title" data-i18n="genParamsTitle">推理参数</h2>
+              </div>
+
+              <label class="field">
+                <span class="field-label" data-i18n="genCheckpointLabel">生成权重 (LoRA / Base)</span>
+                <select id="genCheckpointSelect" class="select-input"></select>
+              </label>
+
+              <div class="form-grid-2">
+                <label class="field">
+                  <span class="field-label" data-i18n="genDeviceLabel">推理设备</span>
+                  <select id="genDeviceSelect" class="select-input"></select>
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="primaryRegionLabel">主地区字形</span>
+                  <select id="genPrimaryRegion" class="select-input">
+                    <option value="SC">SC (简体)</option>
+                    <option value="TC">TC (繁体)</option>
+                    <option value="JP">JP (日文)</option>
+                    <option value="KR">KR (韩文)</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="seedLabel">随机种子 (Seed)</span>
+                  <input id="genSeed" class="text-input" type="number" value="42" />
+                </label>
+                <label class="field">
+                  <span class="field-label" data-i18n="candidatesLabel">每字候选数 (1–8)</span>
+                  <input id="genCandidates" class="text-input" type="number" min="1" max="8" value="1" />
+                </label>
+              </div>
+
+              <label class="checkbox-label">
+                <input type="checkbox" id="genSplitRegions" checked />
+                <span data-i18n="splitRegionsText">按地区拆分子任务（使用对应地区源字体渲染）</span>
+              </label>
+
+              <label class="checkbox-label">
+                <input type="checkbox" id="genUnlockCandidates" />
+                <span data-i18n="unlockCandidatesText">解锁超过 64 字时的多候选生成保护</span>
+              </label>
+
+              <div class="action-row">
+                <button class="btn btn-primary btn-block" id="submitGenerationBtn" type="button" data-i18n="submitGenerationBtn">提交字形生成任务</button>
+              </div>
+              <div class="status-strip" id="generationResultStrip"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 6: REVIEW & EXPORT -->
+        <section class="view" id="view-review">
+          <div class="segmented" id="reviewSubTabs">
+            <button class="seg-btn active" type="button" data-subtab="review-panel" data-i18n="subtabReview">字形审阅与候选选优</button>
+            <button class="seg-btn" type="button" data-subtab="export-panel" data-i18n="subtabExport">矢量化与字库导出</button>
+          </div>
+
+          <div class="subtab-panel active" id="review-panel">
+            <div class="card">
+              <div class="toolbar">
+                <select id="reviewBatchSelect" class="select-input toolbar-grow"></select>
+                <input id="reviewSearchInput" class="text-input" type="text" placeholder="搜索字符或码位 (如 永 / U+6C38)" />
+                <button class="btn btn-secondary" id="reviewRefreshBtn" type="button" data-i18n="loadBatch">载入批次</button>
+              </div>
+
+              <div class="review-layout">
+                <div class="review-main">
+                  <div id="reviewGlyphGrid" class="glyph-grid"></div>
+                  <div class="pager">
+                    <button class="btn btn-ghost btn-sm" id="reviewPrevPage" type="button" data-i18n="prevPage">上一页</button>
+                    <span class="pager-info" id="reviewPageInfo">1 / 1</span>
+                    <button class="btn btn-ghost btn-sm" id="reviewNextPage" type="button" data-i18n="nextPage">下一页</button>
+                  </div>
+                </div>
+
+                <aside class="inspector" id="candidateInspector">
+                  <div class="sub-title" data-i18n="candidateInspectorTitle">候选对比</div>
+                  <div id="candidateInspectorBody" class="empty-state">点击左侧任意字形查看并切换候选图</div>
+                </aside>
+              </div>
+            </div>
+          </div>
+
+          <div class="subtab-panel" id="export-panel">
+            <div class="grid-2">
+              <div class="card">
+                <div class="card-head">
+                  <h2 class="card-title" data-i18n="fontBuildTitle">导出 TrueType 字库 (.ttf)</h2>
+                  <span class="card-hint" data-i18n="fontBuildHint">将审阅后的字形批量矢量化，并合入目标底字生成可安装字库</span>
+                </div>
+
+                <label class="field">
+                  <span class="field-label" data-i18n="exportBatchLabel">选择生成批次</span>
+                  <select id="exportBatchSelect" class="select-input"></select>
+                </label>
+
+                <div class="form-grid-2">
+                  <label class="field">
+                    <span class="field-label" data-i18n="fontFamilyLabel">字体家族名 (英文 / ASCII 推荐)</span>
+                    <input id="exportFamily" class="text-input" type="text" value="MyCustomFont" />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="fontStyleLabel">字重样式</span>
+                    <input id="exportStyle" class="text-input" type="text" value="Regular" />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="fontVersionLabel">版本号</span>
+                    <input id="exportVersion" class="text-input" type="text" value="1.000" />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="fontDesignerLabel">作者 / 设计师</span>
+                    <input id="exportDesigner" class="text-input" type="text" placeholder="可选" />
+                  </label>
+                </div>
+
+                <label class="field">
+                  <span class="field-label" data-i18n="fontLicenseLabel">许可声明</span>
+                  <input id="exportLicense" class="text-input" type="text" placeholder="例如：SIL Open Font License 1.1" />
+                </label>
+
+                <div class="form-grid-2">
+                  <label class="field">
+                    <span class="field-label" data-i18n="thresholdLabel">二值化阈值 (0–255)</span>
+                    <input id="exportThreshold" class="text-input" type="number" min="1" max="254" value="180" />
+                  </label>
+                  <label class="field">
+                    <span class="field-label" data-i18n="despeckleLabel">去噪面积阈值</span>
+                    <input id="exportDespeckle" class="text-input" type="number" min="0" max="100" value="4" />
+                  </label>
+                </div>
+
+                <div class="field">
+                  <span class="field-label" data-i18n="profilesLabel">排版规格</span>
+                  <div class="check-row">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="profileProportional" checked />
+                      <span>proportional (比例文本字库)</span>
+                    </label>
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="profileMono" />
+                      <span>monospace-2to1 (等宽编程字库)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="action-row">
+                  <button class="btn btn-primary" id="buildFontBtn" type="button" data-i18n="buildFontBtn">开始构建字库</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-head compact">
+                  <h2 class="card-title" data-i18n="artifactsPreviewTitle">导出产物与实时试写</h2>
+                  <button class="btn btn-ghost btn-xs" id="refreshArtifactsBtn" type="button" data-i18n="refresh">刷新</button>
+                </div>
+
+                <div class="specimen-box">
+                  <div class="specimen-controls">
+                    <span class="micro-label" id="previewFontBadge">暂无可预览字库</span>
+                    <label class="range-inline">
+                      <span>字号</span>
+                      <input id="specimenSizeRange" type="range" min="16" max="72" value="32" />
+                      <span id="specimenSizeVal">32px</span>
+                    </label>
+                  </div>
+                  <textarea id="specimenTextarea" class="specimen-input" rows="3">永和九年，岁在癸丑，暮春之初。The quick brown fox jumps over 0123456789.</textarea>
+                </div>
+
+                <div class="divider"></div>
+                <div class="sub-title" data-i18n="downloadableFilesTitle">下载文件</div>
+                <div id="exportArtifactsList" class="file-list"></div>
+
+                <div class="divider"></div>
+                <div class="sub-title" data-i18n="svgPreviewTitle">SVG 矢量化抽样</div>
+                <div id="exportSvgGrid" class="svg-grid"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 7: JOBS -->
+        <section class="view" id="view-jobs">
+          <div class="grid-2-wide">
+            <div class="card">
+              <div class="card-head compact">
+                <h2 class="card-title" data-i18n="jobsListTitle">后台任务队列</h2>
+                <div class="btn-group">
+                  <label class="checkbox-label compact">
+                    <input type="checkbox" id="jobsOnlyCurrentProject" />
+                    <span data-i18n="onlyCurrentProject">仅当前项目</span>
+                  </label>
+                  <button class="btn btn-ghost btn-xs" id="refreshJobsBtn" type="button" data-i18n="refresh">刷新</button>
+                </div>
+              </div>
+              <div id="jobsTableWrap" class="table-wrap"></div>
+            </div>
+
+            <div class="card log-card">
+              <div class="card-head compact">
+                <h2 class="card-title" id="logPanelTitle">任务日志</h2>
+                <div class="btn-group">
+                  <button class="btn btn-secondary btn-xs hidden" id="retryJobBtn" type="button" data-i18n="retryJob">重试</button>
+                  <button class="btn btn-danger btn-xs hidden" id="cancelJobBtn" type="button" data-i18n="cancelJob">取消</button>
+                </div>
+              </div>
+              <div class="log-meta" id="logPanelMeta">点击左侧任务查看实时执行日志</div>
+              <pre class="log-viewer" id="jobLogOutput"></pre>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Lightbox Modal for Snapshot/Glyph Preview -->
+  <div class="modal-backdrop hidden" id="imageModal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-head">
+        <span id="modalCaption" class="modal-caption"></span>
+        <button class="btn btn-ghost btn-xs" id="closeModalBtn" type="button">关闭</button>
+      </div>
+      <img id="modalImage" class="modal-img" alt="Preview" />
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script src="/static/app.js?v=5"></script>
+</body>
+</html>

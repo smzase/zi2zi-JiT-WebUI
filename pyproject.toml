@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "zi2zi-jit"
 version = "0.1.0"
-description = "Font synthesis with a local project-based Gradio WebUI"
+description = "Font synthesis with a local project-based WebUI"
 requires-python = ">=3.10,<3.13"
 
 [tool.setuptools.packages.find]
 include = ["data_processing*", "util*", "encoder*", "zi2zi_webui*"]
 
 [tool.setuptools.package-data]
-zi2zi_webui = ["preset_data/*.txt"]
+zi2zi_webui = ["preset_data/*.txt", "static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

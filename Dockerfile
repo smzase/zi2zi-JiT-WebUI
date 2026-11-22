@@ -15,7 +15,7 @@ RUN pip install \
       opencv-python-headless==4.11.0.86 \
       timm==0.9.12 "tensorboard>=2.10,<3" "scipy>=1.10,<2" einops==0.8.1 \
       gdown==5.2.0 fonttools "Pillow<12" pytorch-msssim lpips tqdm matplotlib \
-      gradio==5.21.0 "pydantic<2.11" "pandas<2.3" psutil nvidia-ml-py vtracer==0.6.15 \
+      fastapi uvicorn python-multipart "pydantic<2.11" "pandas<2.3" psutil nvidia-ml-py vtracer==0.6.15 \
     && pip install "git+https://github.com/LTH14/torch-fidelity.git@master" \
     && pip install -e .
 

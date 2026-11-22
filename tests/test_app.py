@@ -1,237 +1,249 @@
+import json
+import re
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
 from zi2zi_webui.app import build_app, training_snapshot_items
 from zi2zi_webui.jobs import JobManager
 from zi2zi_webui.models import TrainingRun
 from zi2zi_webui.storage import Storage
 
+EMOJI_RE = re.compile(
+    "["
+    "\U0001F300-\U0001F9FF"
+    "\U0001FA00-\U0001FAFF"
+    "\U00002600-\U000027BF"
+    "]"
+)
 
-def test_dynamic_timer_dropdowns_accept_restored_browser_values(tmp_path):
-    storage = Storage(tmp_path / "state")
+
+def test_build_app_serves_flat_ui_without_emoji(tmp_path):
+    storage = Storage(tmp_path)
     jobs = JobManager(storage)
     try:
-        app = build_app(storage, jobs, language="en")
-        dropdowns = {
-            block.label: block
-            for block in app.blocks.values()
-            if hasattr(block, "allow_custom_value")
-        }
-        assert dropdowns["Current task"].allow_custom_value
-        assert dropdowns["Compare runs (2–5)"].allow_custom_value
-        assert dropdowns["Current task"].preprocess("restored-job-id") == "restored-job-id"
-        assert dropdowns["Compare runs (2–5)"].preprocess(
-            ["restored-run-id"]
-        ) == ["restored-run-id"]
+        app = build_app(storage, jobs, language="zh")
+        client = TestClient(app)
+
+        health = client.get("/api/health")
+        assert health.status_code == 200
+        assert health.json()["status"] == "ok"
+
+        html_resp = client.get("/")
+        assert html_resp.status_code == 200
+        assert "zi2zi-JiT" in html_resp.text
+        assert "uiModeSwitcher" in html_resp.text
+        assert 'data-ui-mode="simple"' in html_resp.text
+        assert 'data-ui-mode="advanced"' in html_resp.text
+        assert not EMOJI_RE.search(html_resp.text)
+
+        css_resp = client.get("/static/styles.css")
+        assert css_resp.status_code == 200
+        assert "#ffffff" in css_resp.text.lower()
+        assert "#191a1b" in css_resp.text.lower()
+        assert not EMOJI_RE.search(css_resp.text)
+
+        js_resp = client.get("/static/app.js")
+        assert js_resp.status_code == 200
+        assert not EMOJI_RE.search(js_resp.text)
     finally:
         jobs.stop()
 
 
-def test_training_snapshots_include_run_epoch_and_pair_description(tmp_path):
-    snapshot_dir = tmp_path / "compare"
-    snapshot_dir.mkdir()
-    image = snapshot_dir / "grid_00002.png"
-    image.touch()
+def test_training_snapshot_items_formats_caption_and_keeps_latest_first(tmp_path):
+    snap_dir_1 = tmp_path / "epoch_0"
+    snap_dir_2 = tmp_path / "epoch_1"
+    snap_dir_1.mkdir()
+    snap_dir_2.mkdir()
+    first = snap_dir_1 / "eval_0.png"
+    second = snap_dir_2 / "eval_1.png"
+    first.write_bytes(b"png1")
+    second.write_bytes(b"png2")
+
     items = training_snapshot_items(
         [
             (
-                "abc12345",
+                "run001",
                 [
+                    {"phase": "evaluation", "epoch": 0, "snapshot_path": str(snap_dir_1)},
+                    {"phase": "evaluation", "epoch": 1, "snapshot_path": str(snap_dir_2)},
                     {
                         "phase": "evaluation",
-                        "epoch": 9,
-                        "snapshot_path": str(snapshot_dir),
-                    }
+                        "epoch": 2,
+                        "snapshot_path": str(tmp_path / "missing_dir"),
+                    },
                 ],
             )
         ],
         language="zh",
     )
-    assert items == [
-        (
-            str(image),
-            "Run abc12345 · 第 10 轮 · 第 3 组（每对：目标真值 → 当前生成）",
-        )
-    ]
+
+    assert [path for path, _ in items] == [str(first), str(second)]
+    assert "Run run001" in items[0][1]
+    assert "第 1 轮" in items[0][1]
+    assert "第 2 轮" in items[1][1]
 
 
-def test_training_snapshots_deduplicate_repeated_metric_events(tmp_path):
-    snapshot_dir = tmp_path / "compare"
-    snapshot_dir.mkdir()
-    image = snapshot_dir / "grid_00000.png"
-    image.touch()
-    event = {
-        "phase": "evaluation",
-        "epoch": 19,
-        "snapshot_path": str(snapshot_dir),
-    }
-
+def test_training_snapshot_items_supports_fallback_caption_without_metrics(tmp_path):
+    snap_dir = tmp_path / "epoch_0"
+    snap_dir.mkdir()
+    snap = snap_dir / "custom.png"
+    snap.write_bytes(b"png")
     items = training_snapshot_items(
-        [("run12345", [event, dict(event)])],
+        [("run002", [{"phase": "evaluation", "epoch": 0, "snapshot_path": str(snap_dir)}])],
         language="en",
     )
-
-    assert items == [
-        (
-            str(image),
-            "Run run12345 · Epoch 20 · Group 1 (each pair: target → generated)",
-        )
-    ]
+    assert len(items) == 1
+    assert items[0][0] == str(snap)
+    assert "Epoch 1" in items[0][1]
+    assert "Group 1" in items[0][1]
 
 
-def test_training_snapshot_gallery_uses_page_scrolling(tmp_path):
-    storage = Storage(tmp_path / "state")
+def test_project_crud_and_bootstrap(tmp_path):
+    storage = Storage(tmp_path)
     jobs = JobManager(storage)
     try:
         app = build_app(storage, jobs, language="en")
-        gallery = next(
-            block
-            for block in app.blocks.values()
-            if getattr(block, "label", "")
-            == "Training glyph evolution (fixed glyphs and seed)"
-        )
-        assert gallery.height == "auto"
-        assert gallery.columns == 2
+        client = TestClient(app)
+
+        boot = client.get("/api/bootstrap?lang=en")
+        assert boot.status_code == 200
+        boot_data = boot.json()
+        assert isinstance(boot_data["devices"], list)
+        assert isinstance(boot_data["presets"], list)
+        assert all(p["id"] not in {"ja-joyo", "ja-kana"} for p in boot_data["presets"])
+
+        created = client.post("/api/projects", json={"name": "DemoFont"})
+        assert created.status_code == 200
+        pid = created.json()["project"]["id"]
+
+        detail = client.get(f"/api/projects/{pid}")
+        assert detail.status_code == 200
+        assert detail.json()["manifest"]["name"] == "DemoFont"
+
+        # Deletion requires explicit confirmation
+        denied = client.request("DELETE", f"/api/projects/{pid}", json={"confirmed": False})
+        assert denied.status_code == 400
+
+        deleted = client.request("DELETE", f"/api/projects/{pid}", json={"confirmed": True})
+        assert deleted.status_code == 200
+        with pytest.raises(KeyError):
+            storage.get_project(pid)
     finally:
         jobs.stop()
 
 
-def test_project_page_has_confirmed_danger_zone_deletion(tmp_path):
-    storage = Storage(tmp_path / "state")
+def test_dataset_presets_and_file_sandbox(tmp_path):
+    storage = Storage(tmp_path)
     jobs = JobManager(storage)
     try:
         app = build_app(storage, jobs, language="en")
-        delete_button = next(
-            block
-            for block in app.blocks.values()
-            if getattr(block, "value", "") == "Delete project and files"
-        )
-        confirmation = next(
-            block
-            for block in app.blocks.values()
-            if getattr(block, "label", "")
-            == "Confirm permanent deletion of the current project and all files"
-        )
-        assert delete_button.variant == "stop"
-        assert confirmation.value is False
+        client = TestClient(app)
+
+        for name, expected_train in [("quick", 500), ("balanced", 3000), ("coverage", 6000)]:
+            resp = client.get(f"/api/dataset/preset/{name}")
+            assert resp.status_code == 200
+            assert resp.json()["train_count"] == expected_train
+
+        # Files inside storage.root are served; outside paths are rejected
+        inside = tmp_path / "sample.txt"
+        inside.write_text("hello", encoding="utf-8")
+        ok = client.get("/api/files", params={"path": str(inside)})
+        assert ok.status_code == 200
+        assert ok.text == "hello"
+
+        outside = tmp_path.parent / "secret_outside.txt"
+        outside.write_text("nope", encoding="utf-8")
+        try:
+            blocked = client.get("/api/files", params={"path": str(outside)})
+            assert blocked.status_code == 403
+        finally:
+            outside.unlink(missing_ok=True)
     finally:
         jobs.stop()
 
 
-def test_generation_page_has_dynamic_lora_checkpoint_selector(tmp_path):
-    storage = Storage(tmp_path / "state")
-    project = storage.create_project("LoRA")
-    base = storage.models_dir / "base.pth"
-    base.touch()
-    project.base_model = str(base)
-    project.active_checkpoint = str(base)
-    storage.save_project(project)
-    run = TrainingRun(project_id=project.id, parameters={})
-    storage.save_training_run(run)
-    run_dir = storage.project_dir(project.id) / "training" / run.id
-    run_dir.mkdir(parents=True)
-    best = run_dir / "checkpoint-best-ssim.pth"
-    best.touch()
+def test_review_selection_and_training_dashboard_endpoints(tmp_path):
+    storage = Storage(tmp_path)
     jobs = JobManager(storage)
     try:
-        app = build_app(storage, jobs, language="en")
-        selector = next(
-            block
-            for block in app.blocks.values()
-            if getattr(block, "label", "")
-            == "Generation model (LoRA / checkpoint)"
+        project = storage.create_project("ReviewProj")
+        pdir = storage.project_dir(project.id)
+        batch_dir = pdir / "generation" / "batch_001"
+        batch_dir.mkdir(parents=True, exist_ok=True)
+        (batch_dir / "U+4E00_c0.png").write_bytes(b"png0")
+        (batch_dir / "U+4E00_c1.png").write_bytes(b"png1")
+
+        run_dir = pdir / "training" / "run-001"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        metrics_path = run_dir / "metrics.jsonl"
+        metrics_path.write_text(
+            json.dumps(
+                {
+                    "phase": "train",
+                    "global_step": 10,
+                    "step": 10,
+                    "epoch": 1,
+                    "loss": 0.5,
+                    "lr": 0.0001,
+                    "gpu_memory_allocated_gb": 4.2,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
         )
-        assert selector.allow_custom_value
-        assert selector.value == str(best.resolve())
-        assert any(
-            value == str(best.resolve())
-            for _label, value in selector.choices
+        storage.save_training_run(
+            TrainingRun(
+                id="run-001",
+                project_id=project.id,
+                status="completed",
+                parameters={"epochs": 10, "batch_size": 4, "lr": 1e-4},
+                metrics_path=str(metrics_path),
+            )
         )
-        assert selector.preprocess("restored-checkpoint.pth") == "restored-checkpoint.pth"
-    finally:
-        jobs.stop()
 
-
-def test_review_and_export_pages_select_generation_batches(tmp_path):
-    storage = Storage(tmp_path / "state")
-    storage.create_project("Batches")
-    jobs = JobManager(storage)
-    try:
         app = build_app(storage, jobs, language="en")
-        labels = {
-            getattr(block, "label", "")
-            for block in app.blocks.values()
-        }
-        assert "Generation batch" in labels
-        assert "Generation batch to export" in labels
-        assert "Search character or codepoint" in labels
-        assert "Page" in labels
-        assert "Generated glyph directory" not in labels
-    finally:
-        jobs.stop()
+        client = TestClient(app)
 
-
-def test_training_page_defaults_horizontal_flip_off(tmp_path):
-    storage = Storage(tmp_path / "state")
-    jobs = JobManager(storage)
-    try:
-        app = build_app(storage, jobs, language="en")
-        slider = next(
-            block
-            for block in app.blocks.values()
-            if getattr(block, "label", "")
-            == "Horizontal flip probability (normally 0 for CJK)"
+        page = client.get(
+            f"/api/projects/{project.id}/review/page",
+            params={"batch_path": str(batch_dir), "page": 1},
         )
-        assert slider.value == 0.0
-        assert slider.minimum == 0.0
-        assert slider.maximum == 0.5
-    finally:
-        jobs.stop()
+        assert page.status_code == 200
+        assert len(page.json()["items"]) == 1
+        assert page.json()["items"][0]["codepoint"] == "U+4E00"
 
+        cand = client.get(
+            f"/api/projects/{project.id}/review/candidates",
+            params={"batch_path": str(batch_dir), "codepoint": "U+4E00"},
+        )
+        assert cand.status_code == 200
+        assert len(cand.json()["candidates"]) == 2
 
-def test_live_monitors_use_stable_selection_and_paused_ten_second_charts(tmp_path):
-    storage = Storage(tmp_path / "state")
-    jobs = JobManager(storage)
-    try:
-        app = build_app(storage, jobs, language="en")
-        labelled = {
-            getattr(block, "label", ""): block
-            for block in app.blocks.values()
-            if getattr(block, "label", "")
-        }
-        assert labelled["Follow latest task"].value is False
-        assert labelled["Pause auto-refresh"].value is False
-        assert labelled["Current service language"].value == "English"
-        assert "Language / 语言" not in labelled
-        timer_values = [
-            block.value
-            for block in app.blocks.values()
-            if block.__class__.__name__ == "Timer"
-        ]
-        assert 10 in timer_values
-    finally:
-        jobs.stop()
+        sel = client.post(
+            f"/api/projects/{project.id}/review/select",
+            json={
+                "batch_path": str(batch_dir),
+                "codepoint": "U+4E00",
+                "image_path": str(batch_dir / "U+4E00_c1.png"),
+            },
+        )
+        assert sel.status_code == 200
 
+        dash = client.post(
+            f"/api/projects/{project.id}/training/dashboard",
+            json={"run_ids": ["run-001"], "language": "en"},
+        )
+        assert dash.status_code == 200
+        dash_data = dash.json()
+        assert len(dash_data["series"]["loss"]) == 1
+        assert dash_data["series"]["loss"][0]["points"][0]["y"] == 0.5
 
-def test_project_page_exposes_safe_package_import_and_export(tmp_path):
-    storage = Storage(tmp_path / "state")
-    storage.create_project("Portable")
-    jobs = JobManager(storage)
-    try:
-        app = build_app(storage, jobs, language="en")
-        labelled = {
-            getattr(block, "label", ""): block
-            for block in app.blocks.values()
-            if getattr(block, "label", "")
-        }
-        values = {
-            getattr(block, "value", "")
-            for block in app.blocks.values()
-            if isinstance(getattr(block, "value", ""), str)
-        }
-        assert labelled["Export mode"].value == "lightweight"
-        assert labelled["Include shared base models (may be very large)"].value is False
-        assert labelled["Confirm import as a new project"].value is False
-        assert labelled["Project package"].type == "filepath"
-        assert "Export current project" in values
-        assert "Inspect project package" in values
-        assert "Start import" in values
+        del_denied = client.delete(
+            f"/api/projects/{project.id}/training/runs/run-001",
+            params={"confirmed": False},
+        )
+        assert del_denied.status_code == 400
     finally:
         jobs.stop()

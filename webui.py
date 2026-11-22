@@ -10,6 +10,8 @@ from pathlib import Path
 
 os.environ.setdefault("MPLBACKEND", "Agg")
 
+import uvicorn
+
 from zi2zi_webui.app import build_app
 from zi2zi_webui.jobs import JobManager
 from zi2zi_webui.storage import Storage
@@ -23,7 +25,11 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--language", choices=["auto", "zh", "en"], default="auto")
     parser.add_argument("--tensorboard-port", type=int, default=6006)
     parser.add_argument("--no-tensorboard", action="store_true")
-    parser.add_argument("--share", action="store_true", help="Enable Gradio public sharing")
+    parser.add_argument(
+        "--share",
+        action="store_true",
+        help="Deprecated option kept for CLI compatibility",
+    )
     return parser
 
 
@@ -65,12 +71,14 @@ def main() -> None:
         language=language,
         tensorboard_url=tensorboard_url,
     )
-    app.queue(default_concurrency_limit=4).launch(
-        server_name=args.host,
-        server_port=args.port,
-        share=args.share,
-        show_error=True,
-        allowed_paths=[str(storage.root)],
+    print(f"zi2zi-JiT Font Studio running at http://{args.host}:{args.port}", flush=True)
+    if args.share:
+        print("Notice: --share is ignored by the FastAPI WebUI.", flush=True)
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        log_level="info",
     )
 
 
