@@ -1,11 +1,25 @@
+x-webui-common: &webui-common
+  image: zi2zi-jit-webui:latest
+  build:
+    context: .
+    dockerfile: Dockerfile
+  init: true
+  shm_size: ${ZI2ZI_SHM_SIZE:-4gb}
+  stop_grace_period: 30s
+  ports:
+    - "${WEBUI_BIND_HOST:-127.0.0.1}:${WEBUI_PORT:-7860}:7860"
+    - "${WEBUI_BIND_HOST:-127.0.0.1}:${TENSORBOARD_PORT:-6006}:6006"
+  environment:
+    ZI2ZI_TENSORBOARD_URL: ${ZI2ZI_TENSORBOARD_URL:-http://127.0.0.1:${TENSORBOARD_PORT:-6006}}
+    ZI2ZI_TORCH_COMPILE: ${ZI2ZI_TORCH_COMPILE:-auto}
+  volumes:
+    - ${WEBUI_DATA_DIR:-./webui_data}:/data
+    - webui_cache:/root/.cache
+  restart: unless-stopped
+
 services:
   webui:
-    build: .
-    ports:
-      - "127.0.0.1:7860:7860"
-      - "127.0.0.1:6006:6006"
-    volumes:
-      - ./webui_data:/data
+    <<: *webui-common
     deploy:
       resources:
         reservations:
@@ -13,4 +27,10 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    restart: unless-stopped
+
+  webui-cpu:
+    <<: *webui-common
+    profiles: ["cpu"]
+
+volumes:
+  webui_cache:

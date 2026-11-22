@@ -247,3 +247,23 @@ def test_review_selection_and_training_dashboard_endpoints(tmp_path):
         assert del_denied.status_code == 400
     finally:
         jobs.stop()
+
+
+def test_resolve_tensorboard_url_precedence(monkeypatch):
+    from webui import get_parser, resolve_tensorboard_url
+
+    monkeypatch.delenv("ZI2ZI_TENSORBOARD_URL", raising=False)
+    assert resolve_tensorboard_url(6006) == "http://127.0.0.1:6006"
+
+    monkeypatch.setenv("ZI2ZI_TENSORBOARD_URL", "http://127.0.0.1:16006/")
+    assert resolve_tensorboard_url(6006) == "http://127.0.0.1:16006"
+
+    assert (
+        resolve_tensorboard_url(6006, "http://192.168.1.10:6007/")
+        == "http://192.168.1.10:6007"
+    )
+
+    parsed = get_parser().parse_args(["--tensorboard-url", "http://example.local:6006/"])
+    assert resolve_tensorboard_url(parsed.tensorboard_port, parsed.tensorboard_url) == (
+        "http://example.local:6006"
+    )
