@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import re
 import sys
 import tempfile
+import threading
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -27,7 +30,7 @@ from .generation_batches import (
     batch_choices,
     candidates_for_codepoint,
     load_and_prune_selections,
-    review_page as generation_review_page,
+    review_page_details as generation_review_page_details,
     scan_generation_batch,
     validate_batch_path,
 )
@@ -111,8 +114,9 @@ def training_snapshot_items(
     return items[-limit:]
 
 
-def _file_url(path: str | Path) -> str:
-    return "/api/files?path=" + quote(str(Path(path).resolve()), safe="")
+def _file_url(path: str | Path, *, already_resolved: bool = False) -> str:
+    target = Path(path) if already_resolved else Path(path).resolve()
+    return "/api/files?path=" + quote(str(target), safe="")
 
 
 async def _save_upload(upload: UploadFile, dest_dir: Path) -> Path:
@@ -1115,7 +1119,7 @@ def build_app(
             batch = validate_batch_path(storage.project_dir(project_id) / "generation", batch_path)
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        images, codepoints, current_page, total_pages = generation_review_page(
+        images, codepoints, current_page, total_pages, total_items = generation_review_page_details(
             batch,
             search=search,
             page=max(int(page), 1),
@@ -1132,7 +1136,7 @@ def build_app(
                     "codepoint": label,
                     "char": chr(codepoint),
                     "path": str(path),
-                    "url": _file_url(path),
+                    "url": _file_url(path, already_resolved=True),
                     "manual": label in selections,
                 }
             )
@@ -1140,6 +1144,7 @@ def build_app(
             "items": items,
             "page": current_page,
             "total_pages": total_pages,
+            "total_items": total_items,
             "page_size": page_size,
         }
 
@@ -1165,9 +1170,9 @@ def build_app(
             "candidates": [
                 {
                     "name": path.name,
-                    "path": str(path.resolve()),
-                    "url": _file_url(path),
-                    "selected": str(path.resolve()) == selected_path,
+                    "path": str(path),
+                    "url": _file_url(path, already_resolved=True),
+                    "selected": str(path) == selected_path,
                 }
                 for path in paths
             ],
@@ -1303,42 +1308,124 @@ def build_app(
             job_ids.append(jobs.submit("font_build", command, project_id=project_id, cwd=ROOT))
         return {"job_ids": job_ids, "glyph_count": len(discovered_glyphs)}
 
+    svg_dir_cache: OrderedDict[Path, tuple[int, int, tuple[str, ...]]] = OrderedDict()
+    svg_cache_lock = threading.RLock()
+
+    def _list_svg_names_cached(svg_dir: Path) -> tuple[str, ...]:
+        resolved = svg_dir.resolve()
+        try:
+            st = os.stat(resolved)
+        except OSError:
+            return ()
+        with svg_cache_lock:
+            cached = svg_dir_cache.get(resolved)
+            if cached is not None and cached[0] == st.st_mtime_ns and cached[1] == st.st_ctime_ns:
+                svg_dir_cache.move_to_end(resolved)
+                return cached[2]
+        names: list[str] = []
+        try:
+            with os.scandir(resolved) as entries:
+                for entry in entries:
+                    if (
+                        entry.name.lower().endswith(".svg")
+                        and entry.is_file(follow_symlinks=False)
+                    ):
+                        names.append(entry.name)
+        except OSError:
+            return ()
+        names.sort()
+        result = tuple(names)
+        with svg_cache_lock:
+            svg_dir_cache[resolved] = (st.st_mtime_ns, st.st_ctime_ns, result)
+            svg_dir_cache.move_to_end(resolved)
+            while len(svg_dir_cache) > 16:
+                svg_dir_cache.popitem(last=False)
+        return result
+
+    def _evenly_sample(names: tuple[str, ...], limit: int) -> list[str]:
+        if limit <= 0 or not names:
+            return []
+        if len(names) <= limit:
+            return list(names)
+        if limit == 1:
+            return [names[0]]
+        last = len(names) - 1
+        return [names[(idx * last) // (limit - 1)] for idx in range(limit)]
+
     @app.get("/api/projects/{project_id}/export/artifacts")
-    def font_artifacts(project_id: str) -> dict[str, Any]:
+    def font_artifacts(
+        project_id: str,
+        svg_limit: int = Query(48, ge=0, le=200),
+    ) -> dict[str, Any]:
         project_dir = storage.project_dir(project_id)
-        artifacts = sorted(
-            [
-                *project_dir.glob("fonts/*.ttf"),
-                *project_dir.glob("fonts/*.zip"),
-                *project_dir.glob("fonts/*.report.json"),
-                *project_dir.glob("fonts/*.report.html"),
-            ],
-            key=lambda item: item.stat().st_mtime,
-            reverse=True,
+        fonts_dir = (project_dir / "fonts").resolve()
+        artifact_rows: list[tuple[Path, int, int]] = []
+        svg_dirs: list[tuple[Path, int]] = []
+        if fonts_dir.is_dir():
+            try:
+                with os.scandir(fonts_dir) as entries:
+                    for entry in entries:
+                        name_lower = entry.name.lower()
+                        try:
+                            if entry.is_file(follow_symlinks=False):
+                                if name_lower.endswith(
+                                    (".ttf", ".zip", ".report.json", ".report.html")
+                                ):
+                                    st = entry.stat(follow_symlinks=False)
+                                    artifact_rows.append(
+                                        (Path(entry.path), st.st_mtime_ns, st.st_size)
+                                    )
+                            elif entry.is_dir(follow_symlinks=False):
+                                candidate_svg = Path(entry.path) / "svg"
+                                try:
+                                    st = os.stat(candidate_svg)
+                                    if candidate_svg.is_dir():
+                                        svg_dirs.append((candidate_svg, st.st_mtime_ns))
+                                except OSError:
+                                    pass
+                        except OSError:
+                            continue
+            except OSError:
+                pass
+        artifact_rows.sort(key=lambda row: row[1], reverse=True)
+        fonts = [row for row in artifact_rows if row[0].suffix.lower() == ".ttf"]
+
+        # Prefer the newest exported font's SVG directory first, then newest remaining dirs.
+        preferred_svg_dir = fonts[0][0].with_suffix("") / "svg" if fonts else None
+        svg_dirs.sort(
+            key=lambda row: (
+                0 if preferred_svg_dir is not None and row[0] == preferred_svg_dir else 1,
+                -row[1],
+            )
         )
-        svgs = sorted(
-            project_dir.glob("fonts/*/svg/*.svg"),
-            key=lambda item: item.stat().st_mtime,
-            reverse=True,
-        )
-        fonts = [item for item in artifacts if item.suffix.lower() == ".ttf"]
+        sampled_svgs: list[dict[str, str]] = []
+        svg_total = 0
+        for svg_dir, _dir_mtime in svg_dirs:
+            names = _list_svg_names_cached(svg_dir)
+            svg_total += len(names)
+            if not sampled_svgs and names and svg_limit > 0:
+                resolved_svg_dir = svg_dir.resolve()
+                for name in _evenly_sample(names, svg_limit):
+                    sampled_svgs.append(
+                        {"name": name, "url": _file_url(resolved_svg_dir / name, already_resolved=True)}
+                    )
+
         return {
             "artifacts": [
                 {
                     "name": item.name,
                     "path": str(item),
-                    "url": _file_url(item),
-                    "size_kb": round(item.stat().st_size / 1024, 1),
+                    "url": _file_url(item, already_resolved=True),
+                    "size_kb": round(size_bytes / 1024, 1),
                     "ext": item.suffix.lower(),
                 }
-                for item in artifacts
+                for item, _mtime_ns, size_bytes in artifact_rows
             ],
-            "svgs": [
-                {"name": item.name, "url": _file_url(item)}
-                for item in svgs[-100:]
-            ],
-            "preview_font_url": _file_url(fonts[0]) if fonts else None,
-            "preview_font_name": fonts[0].name if fonts else None,
+            "svgs": sampled_svgs,
+            "svg_total": svg_total,
+            "preview_font_url": _file_url(fonts[0][0], already_resolved=True) if fonts else None,
+            "preview_font_name": fonts[0][0].name if fonts else None,
+            "preview_font_version": str(fonts[0][1]) if fonts else None,
         }
 
     @app.get("/api/jobs")
@@ -1422,10 +1509,19 @@ def build_app(
         }
 
     @app.get("/api/files")
-    def serve_file(path: str = Query(...)):
+    def serve_file(path: str = Query(...), v: str | None = Query(default=None)):
         resolved = _safe_resolve_under_root(path)
         media_type, _ = mimetypes.guess_type(str(resolved))
-        return FileResponse(resolved, media_type=media_type)
+        cache_control = (
+            "private, max-age=31536000, immutable"
+            if v
+            else "private, max-age=300"
+        )
+        return FileResponse(
+            resolved,
+            media_type=media_type,
+            headers={"Cache-Control": cache_control},
+        )
 
     if STATIC_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
